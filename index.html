@@ -4,12 +4,187 @@
   <meta charset="UTF-8">
   <title>Botonera Dinámica</title>
   <style>
-    body { font-family: Arial, sans-serif; background: #121212; color: #fff; }
-    .grupo { margin-bottom: 12px; padding: 10px; border-radius: 6px; background: #222; }
-    button { width: 100%; margin: 5px 0; padding: 8px; border-radius: 4px; border: none; background: #C93C20; color: #fff; font-weight: bold; cursor: pointer; }
-    button:hover { background: #a82a15; }
-    .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #333; color: #fff; padding: 12px 18px; border-radius: 8px; font-size: 14px; opacity: 0; pointer-events: none; transition: opacity 0.5s; z-index: 9999; }
-    .toast.show { opacity: 1; }
+   body {
+      font-family: Arial, sans-serif;
+      background: #121212;
+      margin: 10px;
+      padding: 10px;
+      color: #fff;
+    }
+    h3 {
+      margin: 0 0 8px 0;
+      font-size: 14px;
+      font-weight: bold;
+      text-transform: uppercase;
+    }
+    .grupo {
+      margin-bottom: 12px;
+      padding: 10px;
+      border-radius: 6px;
+      box-shadow: 0px 2px 4px rgba(0,0,0,0.3);
+    }
+    button {
+      display: block;
+      width: 100%;
+      margin: 5px 0;
+      padding: 8px;
+      font-size: 13px;
+      cursor: pointer;
+      border: none;
+      border-radius: 4px;
+      background: rgba(0,0,0,0.2);
+      color: #fff;
+      font-weight: bold;
+      transition: 0.2s;
+    }
+    button:hover {
+      background: rgba(0,0,0,0.4);
+    }
+    /* Colores personalizados según billetera */
+    .promo-amigo { background: #2ecc71; }
+    .torres { background: #3498db; }
+    .acuña { background: #9b59b6; }
+    .utilidad { background: #e67e22; }
+    .mensaje-revin { background: #C93C20; }
+    .input-usuario {
+      width: 100%;
+      padding: 8px;
+      margin: 6px 0;
+      border-radius: 4px;
+      border: none;
+      font-size: 13px;
+    }
+    .slider-btn {
+      background: #222;
+      color: #ccc;
+      border: none;
+      outline: none;
+      padding: 4px 14px;
+      font-size: 13px;
+      border-radius: 16px;
+      margin-left: 3px;
+      cursor: pointer;
+      transition: background 0.2s, color 0.2s;
+      font-weight: 500;
+      opacity: 0.8;
+      box-shadow: 0 0 2px #0002;
+    }
+    .slider-btn.selected {
+      background: #fff;
+      color: #C93C20;
+      font-weight: bold;
+      opacity: 1;
+      box-shadow: 0 2px 6px #C93C2055;
+    }
+    /* 🔔 Estilos del toast */
+    .toast {
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0, 0, 0, 0.8);
+      color: #fff;
+      padding: 12px 18px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: bold;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.5s ease, bottom 0.5s ease;
+      z-index: 9999;
+    }
+    .toast.show {
+      opacity: 1;
+      bottom: 40px;
+    }
+    /* Caja historial */
+    #historial-box {
+      margin-top: 15px;
+      background: #34495e;
+      color: #fff;
+      padding: 10px;
+      border-radius: 8px;
+      font-size: 13px;
+    }
+    #historial-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      cursor: pointer;
+      font-weight: bold;
+    }
+    #historial-arrow {
+      transition: transform 0.3s ease;
+      display: inline-block;
+      font-size: 14px;
+    }
+    #historial-content {
+      margin-top: 8px;
+      display: none;
+      background: rgba(255,255,255,0.1);
+      padding: 8px;
+      border-radius: 4px;
+    }
+    #historial-text {
+      display: block;
+      font-size: 12px;
+      margin-bottom: 6px;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+    }
+    #historial-copy {
+      background: rgba(0,0,0,0.4);
+      border: none;
+      color: #fff;
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 12px;
+      cursor: pointer;
+    }
+    #historial-copy:hover {
+      background: rgba(0,0,0,0.6);
+    }
+       #banco-toggle {
+  position: fixed;
+  top: 100px;
+  left: 0;
+  background: #C93C20;
+  color: #fff;
+  font-weight: bold;
+  border-radius: 0 8px 8px 0;
+  padding: 12px 18px 12px 12px;
+  cursor: pointer;
+  box-shadow: 2px 2px 8px #0004;
+  z-index: 10001;
+  transition: left 0.3s;
+  opacity: 0.95;
+}
+
+#banco-toggle.open {
+  left: 220px;
+  transition: left 0.3s;
+}
+
+#banco-panel {
+  position: fixed;
+  top: 80px;
+  left: -220px;
+  width: 220px;
+  background: #222;
+  color: #fff;
+  border-radius: 0 12px 12px 0;
+  box-shadow: 4px 0px 16px #0003;
+  padding: 18px 16px;
+  z-index: 10000;
+  transition: left 0.3s;
+  min-height: 120px;
+  opacity: 0.98;
+}
+
+#banco-panel.open {
+  left: 0;
+  transition: left 0.3s;
+}
   </style>
 </head>
 <body>
