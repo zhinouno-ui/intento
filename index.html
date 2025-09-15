@@ -328,17 +328,34 @@
     copyText(mensaje);
   }
 
-  // ✅ Copiar texto con toast + historial
-  let lastCopied = "";
+ // ✅ Copiar texto con toast + historial
   function copyText(txt) {
+    let tipo = "Texto";
+    const txtLower = txt.toLowerCase();
+    if (txtLower.includes("mistery-box-one")) tipo = "Mistery Box";
+    else if (txtLower.includes("ruleta-bet300vip")) tipo = "Ruleta";
+    else if (txtLower.includes("ceramella.01.mp")) tipo = "Alias Ceramella";
+    else if (txtLower.includes("titular ceramella")) tipo = "Titular Ceramella";
+    else if (txtLower.includes("dylanto.01.mp")) tipo = "Alias Torres";
+    else if (txtLower.includes("titular torres")) tipo = "Titular Torres";
+    else if (txtLower.includes("acuna.03.mp")) tipo = "Alias Acuña";
+    else if (txtLower.includes("titular cristian acuña")) tipo = "Titular Acuña";
+     else if (txtLower.includes("arellano.banco")) tipo = "Banco, Arellano PP";
+      else if (txtLower.includes("edgardo.928.arado.mp")) tipo = "Banco, Arellano MP";
+       else if (txtLower.includes("365.ofi.mp")) tipo = "banco, Chiguay MP";
+    else if (txtLower.includes("somos bet300vip")) tipo = "Info";
+    else if (txtLower.includes("¡saldo acreditado!")) tipo = "Cargado";
+    else if (txtLower.includes("para hacer el retiro")) tipo = "Retiro";
+    else if (txtLower.includes("cronograma")) tipo = "Enlace Wsp";
+    else if (txtLower.includes("fichas extra al instante")) tipo = "Promo Amigos";
+    else if (txtLower.includes("debe enviar tu código")) tipo = "Info Promo Amigos";
+
     if (navigator.clipboard && navigator.clipboard.writeText) {
       navigator.clipboard.writeText(txt).then(() => {
-        showToast("✅ Copiado");
-        addHistorial(txt);
+        showToast(tipo);
       }).catch(() => fallbackCopy(txt));
     } else {
       fallbackCopy(txt);
-    }
   }
 
   function fallbackCopy(txt) {
