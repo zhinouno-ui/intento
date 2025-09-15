@@ -1,0 +1,25 @@
+{
+  "billeteras": [
+    { "alias": "dylanto.01.mp", "nombre": "ALIAS Torres" },
+    { "alias": "acuna.03.mp", "nombre": "ALIAS Acuña" },
+    { "alias": "365.ofi.mp", "nombre": "ALIAS CHIGUAY" },
+    { "alias": "edgardo.928.arado.mp", "nombre": "Arellano MP" },
+    { "alias": "arellano.banco", "nombre": "Arellano PP" }
+  ],
+  "banco": [
+    { "alias": "365.ofi.mp", "nombre": "ALIAS CHIGUAY" },
+    { "alias": "edgardo.928.arado.mp", "nombre": "Arellano MP" },
+    { "alias": "arellano.banco", "nombre": "Arellano PP" }
+  ],
+  "saludos": [
+    "🎲 {usuario}, probá tu giro ahora mismo 🚀\n📲 WhatsApp: https://wa.me/5491138601132?text=Soy%20{usuarioENC}\n👉 Ruleta: https://ruleta-bet300.vercel.app/?pc=1",
+    "🎁 {usuario}, tu Mistery Box puede abrirse ✨\n📲 WhatsApp: https://wa.me/5491138601132?text={usuarioENC}\n👉 Mistery Box: https://mistery-box-one.vercel.app/?pc=1",
+    "🎲 {usuario}, probá tu giro ahora mismo, la suerte espera 🚀\n📲 WhatsApp: https://wa.me/5491138601132?text=Soy%20{usuarioENC}%20quiero%20activar%20mi%20spin\n👉 Ruleta: https://ruleta-bet300.vercel.app/?pc=1",
+    "🎁 {usuario}, tu Mistery Box puede abrirse en este instante ✨\n📲 WhatsApp: https://wa.me/5491138601132?text=Hola%20{usuarioENC}%20manda%20captura%20para%20abrir%20box\n👉 Mistery Box: https://mistery-box-one.vercel.app/?pc=1"
+    // ...agrega el resto de los saludos aquí...
+  ],
+  "toast": {
+    "copiado": "✅ Copiado: ",
+    "error": "❌ Error al copiar"
+  }
+}
