@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ChinBotones Master</title>
+  <link rel="stylesheet" href="/shared.css" />
+</head>
+<body>
+<header><strong>ChinBotones Master</strong> <small id="master-status">desconectado</small></header>
+<div class="container">
+  <section class="panel">
+    <div class="row">
+      <label>Oficina
+        <select id="office-select"></select>
+      </label>
+      <button id="refresh-btn">Refrescar</button>
+      <input id="new-office" placeholder="Nueva oficina" />
+      <button id="create-office" class="ok">Crear oficina</button>
+    </div>
+  </section>
+
+  <section class="panel">
+    <h3>PCs</h3>
+    <div id="pc-list" class="grid"></div>
+  </section>
+
+  <section class="panel">
+    <h3>Editor de Config (JSON)</h3>
+    <small>Flujo principal ahora es server-side. Editá y guardá para pushear en tiempo real a operadores online.</small>
+    <textarea id="config-editor"></textarea>
+    <div class="row">
+      <button id="save-config" class="primary">Guardar Config</button>
+      <button id="preview-config">Previsualizar</button>
+    </div>
+  </section>
+
+  <section class="panel">
+    <h3>Preview empleado</h3>
+    <div id="employee-preview"></div>
+  </section>
+</div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script src="/shared.js"></script>
+<script>
+  const params = new URLSearchParams(location.search);
+  const token = params.get('token') || '';
+
+  const statusEl = document.getElementById('master-status');
+  const officeSelect = document.getElementById('office-select');
+  const pcList = document.getElementById('pc-list');
+  const editor = document.getElementById('config-editor');
+
+  let snapshot = { offices: [] };
+
+  const socket = io();
+  socket.on('connect', () => {
+    statusEl.textContent = 'conectado';
+    socket.emit('master:hello', { token });
+  });
+
+  socket.on('master:ack', (ack) => {
+    if (!ack.ok) {
+      ChinboShared.showToast(ack.error || 'Error');
+      return;
+    }
+  });
+
+  socket.on('master:snapshot', (data) => {
+    snapshot = data;
+    renderOffices();
+  });
+
+  socket.on('master:pcStatus', () => {
+    socket.emit('master:list');
+  });
+
+  function currentOfficeData() {
+    return snapshot.offices.find((o) => o.office === officeSelect.value);
+  }
+
+  function renderOffices() {
+    const previous = officeSelect.value;
+    officeSelect.innerHTML = snapshot.offices.map((o) => `<option value="${ChinboShared.escapeHTML(o.office)}">${ChinboShared.escapeHTML(o.office)}</option>`).join('');
+    officeSelect.value = previous && snapshot.offices.some((o) => o.office === previous) ? previous : (snapshot.offices[0]?.office || '');
+    renderOfficeDetails();
+  }
+
+  function renderOfficeDetails() {
+    const office = currentOfficeData();
+    if (!office) {
+      editor.value = '';
+      pcList.innerHTML = '';
+      return;
+    }
+
+    editor.value = JSON.stringify(office.config, null, 2);
+    pcList.innerHTML = office.pcs.map((pc) => {
+      const link = `/operator/${encodeURIComponent(office.office)}/${encodeURIComponent(pc.pcId)}?token=${encodeURIComponent(office.tokens?.opToken || '')}`;
+      return `
+        <div class="card">
+          <div><strong>${ChinboShared.escapeHTML(pc.name || pc.pcId)}</strong></div>
+          <div><small>${ChinboShared.escapeHTML(pc.pcId)}</small></div>
+          <div><span class="tag ${pc.online ? 'online' : 'offline'}">${pc.online ? 'online' : 'offline'}</span></div>
+          <div><small>lastSeen: ${new Date(pc.lastSeen || 0).toLocaleString()}</small></div>
+          <div class="row" style="margin-top:6px;">
+            <button data-action="copylink" data-link="${link}">Abrir link operador</button>
+          </div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  officeSelect.addEventListener('change', renderOfficeDetails);
+  document.getElementById('refresh-btn').addEventListener('click', () => socket.emit('master:list'));
+
+  document.getElementById('create-office').addEventListener('click', () => {
+    const office = document.getElementById('new-office').value.trim();
+    if (!office) return;
+    socket.emit('master:createOffice', { office });
+    document.getElementById('new-office').value = '';
+  });
+
+  document.getElementById('save-config').addEventListener('click', () => {
+    const office = officeSelect.value;
+    if (!office) return;
+    try {
+      const config = JSON.parse(editor.value);
+      socket.emit('master:updateConfig', { office, config });
+      ChinboShared.showToast('Config guardada y enviada');
+    } catch {
+      ChinboShared.showToast('JSON inválido');
+    }
+  });
+
+  document.getElementById('preview-config').addEventListener('click', () => {
+    try {
+      const config = JSON.parse(editor.value);
+      ChinboShared.renderEmployeeView('employee-preview', config);
+    } catch {
+      ChinboShared.showToast('JSON inválido');
+    }
+  });
+
+  pcList.addEventListener('click', (event) => {
+    const btn = event.target.closest('[data-action="copylink"]');
+    if (!btn) return;
+    const link = `${location.origin}${btn.dataset.link}`;
+    window.open(link, '_blank');
+  });
+</script>
+</body>
+</html>

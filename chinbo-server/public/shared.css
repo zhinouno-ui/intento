@@ -1,0 +1,49 @@
+:root {
+  --bg: #111827;
+  --panel: #1f2937;
+  --muted: #9ca3af;
+  --primary: #3b82f6;
+  --ok: #10b981;
+  --warn: #f59e0b;
+}
+* { box-sizing: border-box; }
+body { margin: 0; font-family: Lato, Arial, sans-serif; background: var(--bg); color: #f9fafb; }
+header { padding: 14px 18px; background: #030712; border-bottom: 1px solid #374151; }
+.container { max-width: 1200px; margin: 0 auto; padding: 16px; }
+.panel { background: var(--panel); border: 1px solid #374151; border-radius: 12px; padding: 12px; margin-bottom: 12px; }
+.row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+input, select, textarea, button {
+  background: #111827;
+  color: #f9fafb;
+  border: 1px solid #4b5563;
+  border-radius: 8px;
+  padding: 8px 10px;
+}
+button { cursor: pointer; }
+button.primary { background: var(--primary); border-color: var(--primary); }
+button.ok { background: var(--ok); border-color: var(--ok); }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; }
+.card { background: #0f172a; border: 1px solid #334155; border-radius: 10px; padding: 10px; }
+.tag { display: inline-block; font-size: 12px; color: #111827; padding: 2px 8px; border-radius: 999px; }
+.tag.online { background: #34d399; }
+.tag.offline { background: #fca5a5; }
+.group-title { font-size: 1.1rem; margin: 0 0 8px; }
+.employee-btn { width: 100%; margin-bottom: 8px; text-align: left; }
+.flip-card { perspective: 900px; }
+.flip-inner { transition: transform 0.4s; transform-style: preserve-3d; position: relative; min-height: 80px; }
+.flip-inner.flipped { transform: rotateY(180deg); }
+.flip-face {
+  position: absolute; inset: 0;
+  backface-visibility: hidden;
+  border: 1px solid #4b5563; border-radius: 10px; padding: 10px;
+  display: grid; place-items: center; background: #0b1220;
+}
+.flip-back { transform: rotateY(180deg); }
+.toast {
+  position: fixed; right: 20px; bottom: 20px;
+  background: #111827; border: 1px solid #4b5563; border-radius: 8px;
+  padding: 8px 12px; z-index: 9999;
+}
+.hidden { display: none; }
+textarea { width: 100%; min-height: 160px; }
+small { color: var(--muted); }
