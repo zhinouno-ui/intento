@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ChinBotones Operator</title>
+  <link rel="stylesheet" href="/shared.css" />
+</head>
+<body>
+<header><strong>ChinBotones Operator</strong> <small id="status"></small></header>
+<div class="container">
+  <div id="employee-container"></div>
+</div>
+<script src="/socket.io/socket.io.js"></script>
+<script src="/shared.js"></script>
+<script>
+  const params = new URLSearchParams(location.search);
+  const token = params.get('token') || '';
+  const parts = location.pathname.split('/').filter(Boolean);
+  const office = decodeURIComponent(parts[1] || 'Oficina Central');
+  const pcId = decodeURIComponent(parts[2] || 'pc_001');
+
+  const statusEl = document.getElementById('status');
+  const socket = io();
+
+  socket.on('connect', () => {
+    statusEl.textContent = `Conectado como ${office} / ${pcId}`;
+    socket.emit('operator:hello', {
+      office,
+      pcId,
+      token,
+      meta: { name: pcId, userAgent: navigator.userAgent }
+    });
+  });
+
+  socket.on('operator:config', ({ config }) => {
+    ChinboShared.renderEmployeeView('employee-container', config);
+  });
+
+  socket.on('operator:notify', ({ message }) => {
+    ChinboShared.showToast(message || 'Notificación');
+  });
+
+  setInterval(() => socket.emit('operator:ping'), 10000);
+</script>
+</body>
+</html>

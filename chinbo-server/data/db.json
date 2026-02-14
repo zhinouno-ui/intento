@@ -1,0 +1,57 @@
+{
+  "globalTokens": {
+    "masterToken": "master-dev-token",
+    "opToken": "operator-dev-token"
+  },
+  "offices": {
+    "Oficina Central": {
+      "config": {
+        "settings": {
+          "masterPassword": ""
+        },
+        "groups": [
+          {
+            "id": "group_default",
+            "name": "Grupo 1",
+            "buttons": [
+              {
+                "id": "btn_1",
+                "type": "simple",
+                "label": "Hola 👋",
+                "text": "Hola, ¿cómo estás?"
+              },
+              {
+                "id": "btn_2",
+                "type": "flip",
+                "label": "Tarjeta",
+                "front": "Frente",
+                "back": "Dorso"
+              },
+              {
+                "id": "btn_3",
+                "type": "revin",
+                "label": "Revin",
+                "values": [
+                  "✅",
+                  "⏳",
+                  "❌"
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "pcs": {
+        "pc_001": {
+          "name": "PC 1",
+          "lastSeen": 0,
+          "online": false
+        }
+      },
+      "tokens": {
+        "masterToken": "master-dev-token",
+        "opToken": "operator-dev-token"
+      }
+    }
+  }
+}
