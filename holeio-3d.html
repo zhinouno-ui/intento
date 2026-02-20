@@ -1,0 +1,677 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Hole.io 3D - Ciudad Devorable</title>
+  <style>
+    :root {
+      --bg: #0a0f1e;
+      --panel: rgba(12, 18, 36, 0.85);
+      --text: #eaf1ff;
+      --accent: #49b6ff;
+      --ok: #8fff9a;
+      --danger: #ff8484;
+    }
+    html, body {
+      margin: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+      color: var(--text);
+      background: radial-gradient(circle at 20% 20%, #1f2e5a, var(--bg));
+    }
+    #game { width: 100%; height: 100%; }
+    .hud {
+      position: fixed;
+      top: 12px;
+      left: 12px;
+      z-index: 10;
+      background: var(--panel);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 12px;
+      padding: 10px 12px;
+      min-width: 210px;
+      backdrop-filter: blur(8px);
+      box-shadow: 0 10px 30px rgba(0,0,0,0.25);
+    }
+    .hud p { margin: 4px 0; font-size: 14px; }
+    .hud .big { font-size: 18px; font-weight: 700; color: var(--accent); }
+    .bar {
+      width: 100%;
+      height: 8px;
+      border-radius: 999px;
+      overflow: hidden;
+      background: rgba(255,255,255,0.15);
+      margin-top: 6px;
+    }
+    .bar > span {
+      display: block;
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, #6ecfff, #8fff9a);
+      transition: width .2s ease;
+    }
+    .overlay {
+      position: fixed;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      background: rgba(2, 5, 14, 0.6);
+      z-index: 20;
+      text-align: center;
+      padding: 20px;
+      transition: opacity .4s;
+    }
+    .overlay.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+    .card {
+      max-width: 680px;
+      border-radius: 18px;
+      background: rgba(7, 12, 26, 0.9);
+      border: 1px solid rgba(255,255,255,0.16);
+      padding: 20px;
+      box-shadow: 0 30px 60px rgba(0,0,0,0.35);
+    }
+    h1 { margin: 0 0 8px 0; font-size: clamp(26px, 4vw, 42px); }
+    h2 { margin: 0 0 12px 0; font-size: clamp(20px, 3vw, 30px); color: var(--ok); }
+    .btn {
+      border: none;
+      margin-top: 14px;
+      border-radius: 999px;
+      background: linear-gradient(90deg, #3aa6ff, #5ad8ff);
+      color: #001a2d;
+      font-weight: 700;
+      font-size: 16px;
+      padding: 11px 20px;
+      cursor: pointer;
+    }
+    .right {
+      position: fixed;
+      top: 12px;
+      right: 12px;
+      z-index: 10;
+      background: var(--panel);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 12px;
+      padding: 10px 12px;
+      max-width: 290px;
+      font-size: 13px;
+      line-height: 1.4;
+      backdrop-filter: blur(8px);
+    }
+    .danger { color: var(--danger); }
+  </style>
+</head>
+<body>
+  <div id="game"></div>
+
+  <div class="hud">
+    <p class="big" id="stage">Stage 1</p>
+    <p>Tamaño agujero: <b id="size">1.00</b></p>
+    <p>Puntaje: <b id="score">0</b></p>
+    <p>Tiempo: <b id="time">90</b>s</p>
+    <p>Progreso stage</p>
+    <div class="bar"><span id="progress"></span></div>
+  </div>
+
+  <div class="right">
+    <b>Controles</b><br>
+    Mouse: mover agujero · Rueda: zoom · WASD/Flechas: mover<br>
+    Objetivo: ¡comete todo! Cada stage agrega nueva ciudad, más tamaño y mayor dificultad.
+  </div>
+
+  <div class="overlay" id="overlay">
+    <div class="card">
+      <h1>Hole.io 3D</h1>
+      <h2 id="overlayTitle">Devora la ciudad completa</h2>
+      <p id="overlayText">
+        Empezás pequeño y vas creciendo al tragarte objetos. Todo lo visible en la ciudad es interactuable y comible.
+        Al completar un stage se desbloquea otro con mapa, layout y dinámica diferentes.
+      </p>
+      <button class="btn" id="startBtn">Empezar</button>
+    </div>
+  </div>
+
+  <script type="module">
+    import * as THREE from 'https://unpkg.com/three@0.161.0/build/three.module.js';
+
+    const container = document.getElementById('game');
+    const overlay = document.getElementById('overlay');
+    const startBtn = document.getElementById('startBtn');
+    const overlayTitle = document.getElementById('overlayTitle');
+    const overlayText = document.getElementById('overlayText');
+
+    const ui = {
+      stage: document.getElementById('stage'),
+      size: document.getElementById('size'),
+      score: document.getElementById('score'),
+      time: document.getElementById('time'),
+      progress: document.getElementById('progress')
+    };
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    container.appendChild(renderer.domElement);
+
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x9fd8ff);
+    scene.fog = new THREE.Fog(0x9fd8ff, 100, 420);
+
+    const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1200);
+    camera.position.set(0, 36, 30);
+
+    const hemi = new THREE.HemisphereLight(0xd8f1ff, 0x35516b, 1.2);
+    scene.add(hemi);
+
+    const sun = new THREE.DirectionalLight(0xffffff, 1.2);
+    sun.position.set(90, 150, 40);
+    sun.castShadow = true;
+    sun.shadow.mapSize.set(2048, 2048);
+    sun.shadow.camera.left = -260;
+    sun.shadow.camera.right = 260;
+    sun.shadow.camera.top = 260;
+    sun.shadow.camera.bottom = -260;
+    scene.add(sun);
+
+    const clock = new THREE.Clock();
+    const keys = {};
+    const pointer = new THREE.Vector2();
+
+    const world = {
+      stageIndex: 0,
+      score: 0,
+      totalEaten: 0,
+      holeRadius: 3.3,
+      holePos: new THREE.Vector3(0, 0, 0),
+      targetHolePos: new THREE.Vector3(0, 0, 0),
+      timeLeft: 90,
+      started: false,
+      clearCount: 0,
+      stageTarget: 1,
+      objects: [],
+      roads: [],
+      cityBounds: 115,
+      zoom: 1,
+      stageDuration: 90,
+      floor: null,
+      aura: null,
+      holeGroup: new THREE.Group(),
+      particles: []
+    };
+
+    const stageDefs = [
+      {
+        name: 'Stage 1 · Downtown Azul',
+        duration: 90,
+        bounds: 110,
+        density: 1,
+        colors: { ground: 0xc7d8e6, sky: 0x9fd8ff },
+        generate() {
+          buildGridRoads(12, 12, 18, 95);
+          spawnDistrict({ xMin: -95, xMax: 95, zMin: -95, zMax: 95, minSize: 1.8, maxSize: 8.8, amount: 310, y: 1.2 });
+          spawnTowers(70, 3, 13);
+          spawnParks(5, 14);
+          spawnSpecials(22);
+        }
+      },
+      {
+        name: 'Stage 2 · Puerto Industrial',
+        duration: 105,
+        bounds: 140,
+        density: 1.35,
+        colors: { ground: 0xc3b59d, sky: 0xffd9a1 },
+        generate() {
+          buildGridRoads(14, 10, 22, 122, 0x5e5446);
+          spawnDistrict({ xMin: -122, xMax: 122, zMin: -122, zMax: 122, minSize: 2.2, maxSize: 10.5, amount: 420, y: 1.4, palette: [0x889199, 0xa1978d, 0x6f747a] });
+          spawnContainers(120);
+          spawnCranes(28);
+          spawnSpecials(34, [0xff7d4d, 0x6ef26e, 0x62b4ff]);
+          spawnTowers(95, 5, 20, [0x6c7582, 0x818b96, 0xa0a6ad]);
+        }
+      },
+      {
+        name: 'Stage 3 · Neo Megacity Nocturna',
+        duration: 120,
+        bounds: 170,
+        density: 1.8,
+        colors: { ground: 0x1a1f30, sky: 0x121728 },
+        generate() {
+          buildRingRoads(6, 20, 160, 0x2b3050);
+          spawnDistrict({ xMin: -155, xMax: 155, zMin: -155, zMax: 155, minSize: 2.4, maxSize: 15.5, amount: 630, y: 1.6, palette: [0x4f5f86, 0x6d4e86, 0x4f7c7c] });
+          spawnNeonPillars(180);
+          spawnSpecials(55, [0xff4d96, 0x6ad6ff, 0xffdc5a]);
+          spawnFlyingPanels(40);
+          spawnTowers(160, 8, 28, [0x4d5a7a, 0x6f7d9e, 0x7680a3]);
+        }
+      }
+    ];
+
+    function rand(min, max) { return min + Math.random() * (max - min); }
+    function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+
+    function clearStage() {
+      world.objects.forEach((obj) => scene.remove(obj.mesh));
+      world.roads.forEach((r) => scene.remove(r));
+      world.particles.forEach((p) => scene.remove(p));
+      world.particles = [];
+      world.objects = [];
+      world.roads = [];
+      world.clearCount = 0;
+
+      if (world.floor) scene.remove(world.floor);
+      if (world.aura) scene.remove(world.aura);
+    }
+
+    function makeFloor(color) {
+      const geom = new THREE.PlaneGeometry(world.cityBounds * 2.2, world.cityBounds * 2.2, 2, 2);
+      const mat = new THREE.MeshStandardMaterial({ color, roughness: 0.92, metalness: 0.05 });
+      const floor = new THREE.Mesh(geom, mat);
+      floor.rotation.x = -Math.PI / 2;
+      floor.receiveShadow = true;
+      world.floor = floor;
+      scene.add(floor);
+    }
+
+    function makeHoleVisual() {
+      scene.remove(world.holeGroup);
+      world.holeGroup = new THREE.Group();
+
+      const rim = new THREE.Mesh(
+        new THREE.RingGeometry(0.8, 1.05, 64),
+        new THREE.MeshBasicMaterial({ color: 0x182033, transparent: true, opacity: 0.65, side: THREE.DoubleSide })
+      );
+      rim.rotation.x = -Math.PI / 2;
+      world.holeGroup.add(rim);
+
+      const disk = new THREE.Mesh(
+        new THREE.CircleGeometry(0.78, 48),
+        new THREE.MeshBasicMaterial({ color: 0x000000, side: THREE.DoubleSide })
+      );
+      disk.rotation.x = -Math.PI / 2;
+      disk.position.y = 0.01;
+      world.holeGroup.add(disk);
+
+      world.aura = new THREE.Mesh(
+        new THREE.RingGeometry(1.08, 1.4, 64),
+        new THREE.MeshBasicMaterial({ color: 0x4fc6ff, transparent: true, opacity: 0.28, side: THREE.DoubleSide })
+      );
+      world.aura.rotation.x = -Math.PI / 2;
+      world.aura.position.y = 0.012;
+      world.holeGroup.add(world.aura);
+
+      scene.add(world.holeGroup);
+      applyHoleScale();
+    }
+
+    function applyHoleScale() {
+      world.holeGroup.scale.setScalar(world.holeRadius);
+    }
+
+    function createEdible(mesh, size, points, wobble = 0) {
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+      scene.add(mesh);
+      world.objects.push({ mesh, size, points, wobble, dead: false });
+    }
+
+    function buildGridRoads(cols, rows, spacing, half, color = 0x6d7681) {
+      const roadMat = new THREE.MeshStandardMaterial({ color, roughness: 0.85 });
+      const stripW = 3.3;
+      for (let i = -cols; i <= cols; i++) {
+        const r = new THREE.Mesh(new THREE.BoxGeometry(stripW, 0.22, half * 2), roadMat);
+        r.position.set(i * spacing, 0.12, 0);
+        r.receiveShadow = true;
+        scene.add(r); world.roads.push(r);
+      }
+      for (let j = -rows; j <= rows; j++) {
+        const r = new THREE.Mesh(new THREE.BoxGeometry(half * 2, 0.22, stripW), roadMat);
+        r.position.set(0, 0.11, j * spacing);
+        r.receiveShadow = true;
+        scene.add(r); world.roads.push(r);
+      }
+    }
+
+    function buildRingRoads(rings, step, maxR, color) {
+      const mat = new THREE.MeshStandardMaterial({ color, roughness: 0.86 });
+      for (let i = 1; i <= rings; i++) {
+        const radius = i * step + 18;
+        const ring = new THREE.Mesh(new THREE.TorusGeometry(radius, 2.4, 12, 160), mat);
+        ring.rotation.x = Math.PI / 2;
+        ring.position.y = 0.1;
+        ring.receiveShadow = true;
+        scene.add(ring); world.roads.push(ring);
+      }
+      const spokes = 14;
+      for (let s = 0; s < spokes; s++) {
+        const a = (s / spokes) * Math.PI * 2;
+        const strip = new THREE.Mesh(new THREE.BoxGeometry(3.1, 0.2, maxR * 2), mat);
+        strip.position.y = 0.1;
+        strip.rotation.y = a;
+        strip.receiveShadow = true;
+        scene.add(strip); world.roads.push(strip);
+      }
+    }
+
+    function spawnDistrict({ xMin, xMax, zMin, zMax, minSize, maxSize, amount, y, palette = [0xbac8d8, 0x98a9c0, 0x8f9aad] }) {
+      for (let i = 0; i < amount; i++) {
+        const sx = rand(minSize, maxSize);
+        const sz = rand(minSize, maxSize);
+        const sy = rand(1.5, maxSize * 3.6);
+        const mesh = new THREE.Mesh(
+          new THREE.BoxGeometry(sx, sy, sz),
+          new THREE.MeshStandardMaterial({ color: pick(palette), roughness: 0.62, metalness: 0.08 })
+        );
+        mesh.position.set(rand(xMin, xMax), sy / 2 + y * 0.05, rand(zMin, zMax));
+        createEdible(mesh, Math.max(sx, sz), Math.ceil(sy + sx + sz), rand(0, 1));
+      }
+    }
+
+    function spawnTowers(amount, minR, maxR, palette = [0x93a3b8, 0x7c8ea3, 0xa8bbd2]) {
+      for (let i = 0; i < amount; i++) {
+        const r = rand(minR, maxR);
+        const h = r * rand(4.5, 8.5);
+        const mesh = new THREE.Mesh(
+          new THREE.CylinderGeometry(r * 0.7, r, h, 10),
+          new THREE.MeshStandardMaterial({ color: pick(palette), roughness: 0.54, metalness: 0.15 })
+        );
+        mesh.position.set(rand(-world.cityBounds * 0.9, world.cityBounds * 0.9), h / 2 + 0.1, rand(-world.cityBounds * 0.9, world.cityBounds * 0.9));
+        createEdible(mesh, r, Math.ceil(h * 1.4), rand(0.1, 0.8));
+      }
+    }
+
+    function spawnParks(amount, size) {
+      for (let i = 0; i < amount; i++) {
+        const px = rand(-world.cityBounds * 0.8, world.cityBounds * 0.8);
+        const pz = rand(-world.cityBounds * 0.8, world.cityBounds * 0.8);
+        for (let t = 0; t < 28; t++) {
+          const tr = rand(0.6, 1.8);
+          const h = rand(2.2, 4.8);
+          const trunk = new THREE.Mesh(new THREE.CylinderGeometry(tr * 0.3, tr * 0.4, h, 7), new THREE.MeshStandardMaterial({ color: 0x7e5627 }));
+          trunk.position.set(px + rand(-size, size), h / 2, pz + rand(-size, size));
+          createEdible(trunk, tr, 8, 0.3);
+          const crown = new THREE.Mesh(new THREE.SphereGeometry(tr * 1.2, 10, 10), new THREE.MeshStandardMaterial({ color: 0x3c9e4a }));
+          crown.position.set(trunk.position.x, h + tr * 0.7, trunk.position.z);
+          createEdible(crown, tr * 1.2, 11, 0.55);
+        }
+      }
+    }
+
+    function spawnContainers(count) {
+      const palette = [0xe8723d, 0x4f8ed8, 0x66b35f, 0xd7b453];
+      for (let i = 0; i < count; i++) {
+        const w = rand(2.4, 4.6), h = rand(1.5, 2.2), d = rand(5.2, 9.1);
+        const box = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), new THREE.MeshStandardMaterial({ color: pick(palette), roughness: 0.7, metalness: 0.22 }));
+        box.position.set(rand(-world.cityBounds * 0.82, world.cityBounds * 0.82), h / 2, rand(-world.cityBounds * 0.82, world.cityBounds * 0.82));
+        box.rotation.y = rand(0, Math.PI);
+        createEdible(box, Math.max(w, d) * 0.6, 24, 0.5);
+      }
+    }
+
+    function spawnCranes(count) {
+      for (let i = 0; i < count; i++) {
+        const x = rand(-world.cityBounds * 0.8, world.cityBounds * 0.8);
+        const z = rand(-world.cityBounds * 0.8, world.cityBounds * 0.8);
+        const mastH = rand(10, 18);
+        const mast = new THREE.Mesh(new THREE.BoxGeometry(1.2, mastH, 1.2), new THREE.MeshStandardMaterial({ color: 0xe4d35f, roughness: 0.5 }));
+        mast.position.set(x, mastH / 2, z);
+        createEdible(mast, 1.4, 44, 0.45);
+        const arm = new THREE.Mesh(new THREE.BoxGeometry(rand(8, 16), 0.9, 1.1), new THREE.MeshStandardMaterial({ color: 0xe4d35f, roughness: 0.5 }));
+        arm.position.set(x + rand(-4, 4), mastH - 1, z + rand(-4, 4));
+        createEdible(arm, 3.2, 36, 0.45);
+      }
+    }
+
+    function spawnNeonPillars(count) {
+      const mat = [0x5a7bff, 0xff54a5, 0x5ff2ff, 0xc4ff5e];
+      for (let i = 0; i < count; i++) {
+        const r = rand(0.8, 2.6);
+        const h = rand(5, 20);
+        const mesh = new THREE.Mesh(
+          new THREE.CylinderGeometry(r, r, h, 14),
+          new THREE.MeshStandardMaterial({ color: pick(mat), emissive: pick(mat), emissiveIntensity: 0.15, roughness: 0.36 })
+        );
+        mesh.position.set(rand(-world.cityBounds, world.cityBounds), h / 2, rand(-world.cityBounds, world.cityBounds));
+        createEdible(mesh, r * 1.2, 30, 1.2);
+      }
+    }
+
+    function spawnSpecials(amount, palette = [0xff8a5a, 0x66d7ff, 0x8fff9a]) {
+      for (let i = 0; i < amount; i++) {
+        const type = Math.floor(rand(0, 3));
+        let geo, sz = rand(2, 6);
+        if (type === 0) geo = new THREE.DodecahedronGeometry(sz, 0);
+        else if (type === 1) geo = new THREE.IcosahedronGeometry(sz * 0.75, 0);
+        else geo = new THREE.TorusKnotGeometry(sz * 0.55, sz * 0.18, 60, 10);
+
+        const mesh = new THREE.Mesh(
+          geo,
+          new THREE.MeshStandardMaterial({ color: pick(palette), emissive: 0x111111, roughness: 0.4, metalness: 0.35 })
+        );
+        mesh.position.set(rand(-world.cityBounds * 0.9, world.cityBounds * 0.9), rand(1.4, 6.5), rand(-world.cityBounds * 0.9, world.cityBounds * 0.9));
+        createEdible(mesh, sz * 1.05, Math.ceil(sz * 15), rand(0.6, 1.4));
+      }
+    }
+
+    function spawnFlyingPanels(count) {
+      for (let i = 0; i < count; i++) {
+        const w = rand(4, 11), h = rand(2, 5);
+        const mesh = new THREE.Mesh(
+          new THREE.BoxGeometry(w, h, 1),
+          new THREE.MeshStandardMaterial({ color: pick([0x89a9ff, 0xff70b6, 0x70ffd8]), emissive: 0x11162d, emissiveIntensity: 0.22 })
+        );
+        mesh.position.set(rand(-world.cityBounds, world.cityBounds), rand(8, 22), rand(-world.cityBounds, world.cityBounds));
+        createEdible(mesh, Math.max(w, h) * 0.6, 48, rand(0.8, 1.8));
+      }
+    }
+
+    function buildStage(index) {
+      clearStage();
+
+      const def = stageDefs[index % stageDefs.length];
+      world.stageIndex = index;
+      world.stageDuration = def.duration;
+      world.timeLeft = def.duration;
+      world.cityBounds = def.bounds;
+
+      scene.background.setHex(def.colors.sky);
+      scene.fog.color.setHex(def.colors.sky);
+      scene.fog.near = 120;
+      scene.fog.far = world.cityBounds * 3.2;
+      makeFloor(def.colors.ground);
+
+      world.holePos.set(0, 0, 0);
+      world.targetHolePos.set(0, 0, 0);
+
+      def.generate();
+      world.stageTarget = Math.max(1, world.objects.length);
+
+      ui.stage.textContent = def.name;
+      ui.progress.style.width = '0%';
+    }
+
+    function absorbObject(obj) {
+      obj.dead = true;
+      world.totalEaten++;
+      world.clearCount++;
+      world.score += obj.points;
+
+      const gain = Math.max(0.03, Math.min(0.28, obj.size * 0.045));
+      world.holeRadius += gain;
+      applyHoleScale();
+
+      const burst = new THREE.Mesh(
+        new THREE.SphereGeometry(Math.max(0.5, obj.size * 0.25), 10, 10),
+        new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.55 })
+      );
+      burst.position.copy(obj.mesh.position);
+      scene.add(burst);
+      world.particles.push(burst);
+
+      scene.remove(obj.mesh);
+      ui.score.textContent = String(world.score);
+      ui.size.textContent = world.holeRadius.toFixed(2);
+      ui.progress.style.width = `${Math.min(100, (world.clearCount / world.stageTarget) * 100)}%`;
+    }
+
+    function onStageCompleted() {
+      world.started = false;
+      overlay.classList.remove('hidden');
+      const next = world.stageIndex + 2;
+      overlayTitle.textContent = `Stage ${world.stageIndex + 1} completado`;
+      overlayText.innerHTML = `
+        Excelente. Comiste <b>${world.clearCount}</b> objetos y tu agujero quedó en tamaño <b>${world.holeRadius.toFixed(2)}</b>.<br>
+        Siguiente: <b>Stage ${next}</b>, nuevo diseño de ciudad y más elementos masivos para devorar.
+      `;
+      startBtn.textContent = 'Jugar siguiente stage';
+    }
+
+    function onGameOver() {
+      world.started = false;
+      overlay.classList.remove('hidden');
+      overlayTitle.textContent = 'Tiempo agotado';
+      overlayText.innerHTML = `Puntaje final: <b>${world.score}</b> · Objetos devorados: <b>${world.totalEaten}</b>.<br>Podés reintentar desde el stage actual.`;
+      startBtn.textContent = 'Reintentar stage';
+    }
+
+    function step(dt) {
+      if (!world.started) return;
+
+      world.timeLeft -= dt;
+      if (world.timeLeft <= 0) {
+        world.timeLeft = 0;
+        ui.time.textContent = '0';
+        onGameOver();
+        return;
+      }
+      ui.time.textContent = String(Math.ceil(world.timeLeft));
+
+      const speed = Math.max(18, 22 + world.holeRadius * 1.8);
+      const move = new THREE.Vector3();
+      if (keys['ArrowUp'] || keys['KeyW']) move.z -= 1;
+      if (keys['ArrowDown'] || keys['KeyS']) move.z += 1;
+      if (keys['ArrowLeft'] || keys['KeyA']) move.x -= 1;
+      if (keys['ArrowRight'] || keys['KeyD']) move.x += 1;
+
+      if (move.lengthSq() > 0) {
+        move.normalize().multiplyScalar(speed * dt);
+        world.targetHolePos.add(move);
+      } else {
+        const mx = pointer.x * world.cityBounds * 0.7;
+        const mz = pointer.y * world.cityBounds * 0.7;
+        world.targetHolePos.lerp(new THREE.Vector3(mx, 0, mz), 0.12);
+      }
+
+      world.targetHolePos.x = THREE.MathUtils.clamp(world.targetHolePos.x, -world.cityBounds, world.cityBounds);
+      world.targetHolePos.z = THREE.MathUtils.clamp(world.targetHolePos.z, -world.cityBounds, world.cityBounds);
+
+      world.holePos.lerp(world.targetHolePos, 0.16);
+      world.holeGroup.position.set(world.holePos.x, 0.04, world.holePos.z);
+
+      const camOffset = new THREE.Vector3(24 * world.zoom, 30 * world.zoom, 24 * world.zoom);
+      const desiredCam = world.holePos.clone().add(camOffset);
+      camera.position.lerp(desiredCam, 0.06);
+      camera.lookAt(world.holePos.x, 0, world.holePos.z);
+
+      const absorbRadius = world.holeRadius * 0.9;
+      for (const obj of world.objects) {
+        if (obj.dead) continue;
+
+        obj.mesh.rotation.y += dt * obj.wobble * 0.9;
+        if (obj.mesh.position.y > 0.5 && obj.wobble > 0.7) {
+          obj.mesh.position.y += Math.sin(performance.now() * 0.0017 + obj.mesh.position.x * 0.1) * 0.02;
+        }
+
+        const dx = obj.mesh.position.x - world.holePos.x;
+        const dz = obj.mesh.position.z - world.holePos.z;
+        const dist = Math.hypot(dx, dz);
+
+        if (dist < absorbRadius * 1.8 && obj.size <= world.holeRadius * 1.07) {
+          const sinkFactor = Math.max(0.02, (absorbRadius * 1.8 - dist) * 0.006);
+          obj.mesh.position.y = Math.max(-18, obj.mesh.position.y - sinkFactor * obj.size);
+          obj.mesh.scale.multiplyScalar(0.992);
+        }
+
+        if (dist < absorbRadius && obj.size <= world.holeRadius * 1.07 && obj.mesh.position.y < -6) {
+          absorbObject(obj);
+        }
+      }
+
+      for (let i = world.particles.length - 1; i >= 0; i--) {
+        const p = world.particles[i];
+        p.scale.multiplyScalar(1.02);
+        p.material.opacity -= dt * 0.9;
+        if (p.material.opacity <= 0) {
+          scene.remove(p);
+          world.particles.splice(i, 1);
+        }
+      }
+
+      if (world.clearCount >= world.stageTarget) {
+        onStageCompleted();
+      }
+    }
+
+    function animate() {
+      const dt = Math.min(0.035, clock.getDelta());
+      step(dt);
+      renderer.render(scene, camera);
+      requestAnimationFrame(animate);
+    }
+
+    function startNextStage(resetCurrent = false) {
+      const idx = resetCurrent ? world.stageIndex : world.stageIndex + (world.started ? 0 : 1);
+      const targetIndex = Math.max(0, idx);
+
+      if (!resetCurrent && world.stageIndex === 0 && world.score === 0 && world.totalEaten === 0 && !world.started) {
+        buildStage(0);
+      } else {
+        buildStage(targetIndex);
+      }
+
+      world.started = true;
+      overlay.classList.add('hidden');
+      startBtn.textContent = 'Continuar';
+    }
+
+    startBtn.addEventListener('click', () => {
+      if (overlayTitle.textContent.includes('Tiempo agotado')) {
+        startNextStage(true);
+      } else {
+        startNextStage(false);
+      }
+    });
+
+    window.addEventListener('mousemove', (e) => {
+      pointer.x = (e.clientX / window.innerWidth) * 2 - 1;
+      pointer.y = (e.clientY / window.innerHeight) * 2 - 1;
+    });
+
+    window.addEventListener('wheel', (e) => {
+      world.zoom = THREE.MathUtils.clamp(world.zoom + e.deltaY * 0.0006, 0.6, 1.8);
+    }, { passive: true });
+
+    window.addEventListener('keydown', (e) => { keys[e.code] = true; });
+    window.addEventListener('keyup', (e) => { keys[e.code] = false; });
+
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    makeHoleVisual();
+    buildStage(0);
+    ui.score.textContent = '0';
+    ui.size.textContent = world.holeRadius.toFixed(2);
+    ui.time.textContent = String(world.timeLeft);
+    animate();
+  </script>
+</body>
+</html>
