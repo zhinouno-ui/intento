@@ -3,686 +3,640 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Mini Hole.io 3D - Ciudad Devoradora</title>
+  <title>Hole City 3D - Update Jugable</title>
   <style>
     :root {
-      --hud-bg: rgba(8, 10, 18, 0.8);
-      --hud-border: rgba(180, 200, 255, 0.2);
-      --accent: #59d4ff;
-      --danger: #ff5b7f;
-      --ok: #75ffb6;
+      --hud-bg: rgba(7, 10, 20, 0.82);
+      --hud-border: rgba(180, 220, 255, 0.24);
+      --accent: #57d7ff;
+      --ok: #8affc2;
+      --warn: #ffd873;
     }
+    * { box-sizing: border-box; }
     html, body {
       margin: 0;
       width: 100%;
       height: 100%;
       overflow: hidden;
-      font-family: Inter, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
-      background: radial-gradient(circle at 20% 10%, #1a2047, #080a14 60%, #020307 100%);
+      font-family: Inter, Segoe UI, Arial, sans-serif;
       color: #eaf2ff;
+      background: radial-gradient(circle at 20% 12%, #263e71, #0d1328 58%, #05070f 100%);
     }
-    #game {
-      position: fixed;
-      inset: 0;
-    }
+    #game { position: fixed; inset: 0; }
     .hud {
       position: fixed;
       z-index: 20;
-      backdrop-filter: blur(8px);
       background: var(--hud-bg);
       border: 1px solid var(--hud-border);
-      border-radius: 14px;
-      box-shadow: 0 10px 35px rgba(0, 0, 0, 0.4);
-      padding: 10px 14px;
+      border-radius: 12px;
+      padding: 10px 13px;
+      box-shadow: 0 12px 36px rgba(0,0,0,0.42);
+      backdrop-filter: blur(7px);
       user-select: none;
     }
-    #stats { top: 14px; left: 14px; min-width: 240px; }
-    #help { bottom: 14px; left: 14px; max-width: 380px; font-size: 13px; line-height: 1.4; }
-    #stageNotice {
-      top: 14px;
-      right: 14px;
-      text-align: right;
-      min-width: 250px;
-    }
-    #centerMessage {
+    #stats { top: 12px; left: 12px; min-width: 245px; }
+    #controls { left: 12px; bottom: 12px; max-width: 330px; font-size: 13px; line-height: 1.35; }
+    #objective { top: 12px; right: 12px; min-width: 240px; text-align: right; }
+    #center {
       position: fixed;
-      z-index: 25;
+      z-index: 30;
       left: 50%;
       top: 50%;
       transform: translate(-50%, -50%);
-      background: rgba(3, 8, 20, 0.92);
-      border: 1px solid rgba(114, 190, 255, 0.25);
-      border-radius: 18px;
-      padding: 24px 26px;
-      text-align: center;
+      background: rgba(5,10,22,0.9);
+      border: 1px solid rgba(130, 204, 255, 0.3);
+      border-radius: 16px;
       max-width: min(92vw, 620px);
-      box-shadow: 0 20px 70px rgba(0, 0, 0, 0.5);
+      text-align: center;
+      padding: 22px;
+      box-shadow: 0 26px 70px rgba(0,0,0,0.55);
     }
-    #centerMessage h1 { margin-top: 0; font-size: clamp(24px, 3.5vw, 34px); }
-    #centerMessage p { opacity: 0.9; margin-bottom: 12px; }
+    #center.hidden { display: none; }
+    h1 { margin: 0 0 10px; font-size: clamp(24px, 3vw, 34px); }
+    p { margin: 9px 0; }
+    .accent { color: var(--accent); }
+    .ok { color: var(--ok); }
+    .warn { color: var(--warn); }
     button {
-      border: none;
+      margin-top: 9px;
+      border: 0;
       border-radius: 10px;
-      background: linear-gradient(120deg, #2f7bff, #14c7ff);
-      color: #fff;
-      font-weight: 700;
-      letter-spacing: 0.3px;
       padding: 10px 14px;
+      font-weight: 700;
+      color: #fff;
       cursor: pointer;
-      margin-top: 8px;
+      background: linear-gradient(120deg, #2b7eff, #1ec8ff);
     }
     .barWrap {
-      margin-top: 10px;
+      margin-top: 9px;
       height: 10px;
-      background: rgba(255,255,255,0.1);
       border-radius: 999px;
       overflow: hidden;
+      background: rgba(255,255,255,0.12);
     }
     .bar {
       height: 100%;
       width: 0;
-      background: linear-gradient(90deg, #5dffed, #67e3ff, #5a96ff);
-      transition: width 0.25s ease;
+      background: linear-gradient(90deg, #7fffd8, #57c8ff, #6d85ff);
+      transition: width .2s ease;
     }
-    .ok { color: var(--ok); }
-    .danger { color: var(--danger); }
-    .accent { color: var(--accent); }
-    .hidden { display: none; }
   </style>
 </head>
 <body>
   <canvas id="game"></canvas>
 
-  <div id="stats" class="hud">
-    <div><strong>🕳️ Tamaño del agujero:</strong> <span id="sizeText">1.0</span></div>
-    <div><strong>📦 Objetos comidos:</strong> <span id="eatenText">0</span></div>
-    <div><strong>⭐ Puntos:</strong> <span id="scoreText">0</span></div>
-    <div><strong>🏙️ Stage:</strong> <span id="stageText">1</span></div>
+  <div class="hud" id="stats">
+    <div><strong>🕳️ Tamaño:</strong> <span id="sizeText">1.00</span></div>
+    <div><strong>⭐ Puntaje:</strong> <span id="scoreText">0</span></div>
+    <div><strong>📦 Comidos:</strong> <span id="eatenText">0</span></div>
+    <div><strong>🏙️ Stage:</strong> <span id="stageText">1 / 3</span></div>
     <div class="barWrap"><div class="bar" id="progressBar"></div></div>
-    <small id="progressLabel">Comé para crecer y desbloquear el siguiente stage</small>
+    <small id="progressText">Comé objetos chicos para crecer.</small>
   </div>
 
-  <div id="stageNotice" class="hud">
-    <div><strong class="accent">Objetivo actual</strong></div>
-    <div id="objectiveText">Comé objetos chicos para crecer</div>
-    <div id="comboText" class="ok">Combo x1</div>
+  <div class="hud" id="objective">
+    <div><strong class="accent">Objetivo</strong></div>
+    <div id="goalText">Expandite para tragar edificios</div>
+    <div id="comboText" class="ok">Combo x1.00</div>
   </div>
 
-  <div id="help" class="hud">
-    <strong>Controles</strong><br />
-    WASD / Flechas: mover agujero<br />
-    Shift: sprint (gasta impulso)<br />
-    Espacio: mini boost<br />
-    Click sostenido: mover hacia puntero (top-down)<br />
-    Rueda mouse: zoom aéreo<br />
+  <div class="hud" id="controls">
+    <strong>Controles</strong><br>
+    WASD / Flechas: mover libremente<br>
+    Shift: acelerar<br>
+    Espacio: dash corto<br>
+    Click izquierdo: mover hacia el punto clickeado<br>
+    Rueda mouse: zoom de cámara<br>
     R: reiniciar stage
   </div>
 
-  <div id="centerMessage">
-    <h1>Mini Hole.io 3D</h1>
-    <p>
-      Devorá toda la ciudad: autos, árboles, postes, casas, edificios y megatorres.
-      Cada stage cambia layout, dificultad y tamaño de objetos.
-    </p>
-    <p class="accent">Todo objeto del entorno es interactuable/comible.</p>
-    <button id="startBtn">Empezar partida</button>
+  <div id="center">
+    <h1>Hole City 3D</h1>
+    <p>Update total de jugabilidad: cámara aérea limpia + movimiento estable + absorción confiable.</p>
+    <p class="accent">Todo objeto del escenario es comible de forma progresiva.</p>
+    <button id="startBtn">Empezar</button>
   </div>
 
   <script type="module">
     import * as THREE from 'https://unpkg.com/three@0.160.0/build/three.module.js';
 
-    const canvas = document.getElementById('game');
-    const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false });
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    renderer.shadowMap.enabled = true;
-    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-
-    const scene = new THREE.Scene();
-    scene.fog = new THREE.Fog(0x0f1528, 80, 260);
-
-    const camera = new THREE.PerspectiveCamera(62, 1, 0.1, 800);
-    const camPivot = new THREE.Object3D();
-    scene.add(camPivot);
-
-    const hemi = new THREE.HemisphereLight(0x99c5ff, 0x263041, 0.55);
-    scene.add(hemi);
-
-    const sun = new THREE.DirectionalLight(0xfff2d8, 1.1);
-    sun.position.set(80, 120, 50);
-    sun.castShadow = true;
-    sun.shadow.mapSize.set(2048, 2048);
-    sun.shadow.camera.left = -120;
-    sun.shadow.camera.right = 120;
-    sun.shadow.camera.top = 120;
-    sun.shadow.camera.bottom = -120;
-    scene.add(sun);
-
     const stageConfigs = [
       {
-        name: '1 - Barrio Inicial',
-        groundSize: 120,
-        density: 1,
-        goalScore: 900,
-        theme: { top: 0x4f6f95, bottom: 0x0f1528, ground: 0x2e3342 },
-        spawnSets: [
-          { kind: 'street', count: 120 },
-          { kind: 'park', count: 50 },
-          { kind: 'homes', count: 40 },
-          { kind: 'mid', count: 20 }
+        name: '1 - Distrito Residencial',
+        world: 92,
+        targetScore: 1700,
+        theme: { skyA: 0x35538a, skyB: 0x101935, ground: 0x313c4c },
+        sets: [
+          { kind: 'small', count: 90 },
+          { kind: 'trees', count: 42 },
+          { kind: 'house', count: 40 },
+          { kind: 'block', count: 16 }
         ]
       },
       {
-        name: '2 - Centro Urbano',
-        groundSize: 160,
-        density: 1.35,
-        goalScore: 3200,
-        theme: { top: 0x6f5d88, bottom: 0x111426, ground: 0x3a3347 },
-        spawnSets: [
-          { kind: 'street', count: 180 },
-          { kind: 'park', count: 75 },
-          { kind: 'homes', count: 90 },
-          { kind: 'mid', count: 70 },
-          { kind: 'towers', count: 20 }
+        name: '2 - Centro Comercial',
+        world: 118,
+        targetScore: 5200,
+        theme: { skyA: 0x624d8f, skyB: 0x131832, ground: 0x3c3650 },
+        sets: [
+          { kind: 'small', count: 130 },
+          { kind: 'trees', count: 60 },
+          { kind: 'house', count: 70 },
+          { kind: 'block', count: 48 },
+          { kind: 'tower', count: 16 }
         ]
       },
       {
-        name: '3 - Mega Metrópolis',
-        groundSize: 220,
-        density: 1.85,
-        goalScore: 9200,
-        theme: { top: 0x8f4765, bottom: 0x0b0f1f, ground: 0x3a2932 },
-        spawnSets: [
-          { kind: 'street', count: 260 },
-          { kind: 'park', count: 110 },
-          { kind: 'homes', count: 110 },
-          { kind: 'mid', count: 140 },
-          { kind: 'towers', count: 80 },
-          { kind: 'mega', count: 22 }
+        name: '3 - Megaciudad',
+        world: 142,
+        targetScore: 13000,
+        theme: { skyA: 0x7f445b, skyB: 0x101527, ground: 0x432d38 },
+        sets: [
+          { kind: 'small', count: 170 },
+          { kind: 'trees', count: 80 },
+          { kind: 'house', count: 85 },
+          { kind: 'block', count: 75 },
+          { kind: 'tower', count: 40 },
+          { kind: 'mega', count: 12 }
         ]
       }
     ];
 
-    const materials = {
-      asphalt: new THREE.MeshStandardMaterial({ color: 0x1f2432, roughness: 0.95, metalness: 0.05 }),
-      sidewalk: new THREE.MeshStandardMaterial({ color: 0x4e5568, roughness: 0.9, metalness: 0.1 }),
-      grass: new THREE.MeshStandardMaterial({ color: 0x385b45, roughness: 1.0 }),
-      tree: new THREE.MeshStandardMaterial({ color: 0x4ca868, roughness: 0.95 }),
-      trunk: new THREE.MeshStandardMaterial({ color: 0x6b4b2f, roughness: 1.0 }),
-      house: new THREE.MeshStandardMaterial({ color: 0xd5b07f, roughness: 0.85 }),
-      roof: new THREE.MeshStandardMaterial({ color: 0x7f3232, roughness: 0.9 }),
-      tower: new THREE.MeshStandardMaterial({ color: 0x8ea4cf, roughness: 0.45, metalness: 0.45 }),
-      mega: new THREE.MeshStandardMaterial({ color: 0xa8a1bb, roughness: 0.4, metalness: 0.55 }),
-      car: new THREE.MeshStandardMaterial({ color: 0xf05f86, roughness: 0.5, metalness: 0.35 }),
-      post: new THREE.MeshStandardMaterial({ color: 0x9699ac, roughness: 0.7, metalness: 0.2 }),
-      holeRing: new THREE.MeshStandardMaterial({ color: 0x0f1224, roughness: 0.6, metalness: 0.15, emissive: 0x0f1638, emissiveIntensity: 0.45 }),
+    const renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('game'), antialias: true });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.shadowMap.enabled = true;
+
+    const scene = new THREE.Scene();
+    scene.fog = new THREE.Fog(0x101935, 55, 260);
+
+    const camera = new THREE.PerspectiveCamera(58, 1, 0.1, 900);
+    const cameraLook = new THREE.Vector3();
+
+    scene.add(new THREE.HemisphereLight(0xa8cbff, 0x243247, 0.55));
+    const sun = new THREE.DirectionalLight(0xffefd0, 1.15);
+    sun.position.set(90, 130, 20);
+    sun.castShadow = true;
+    sun.shadow.mapSize.set(2048, 2048);
+    scene.add(sun);
+
+    const mats = {
+      asphalt: new THREE.MeshStandardMaterial({ color: 0x1f2531, roughness: 0.98 }),
+      ground: new THREE.MeshStandardMaterial({ color: 0x313c4c, roughness: 1.0 }),
+      post: new THREE.MeshStandardMaterial({ color: 0x9aa2b4, roughness: 0.8 }),
+      car: new THREE.MeshStandardMaterial({ color: 0xea5b88, roughness: 0.48, metalness: 0.3 }),
+      treeTop: new THREE.MeshStandardMaterial({ color: 0x45aa68, roughness: 0.9 }),
+      treeTrunk: new THREE.MeshStandardMaterial({ color: 0x6d4d2e, roughness: 1.0 }),
+      house: new THREE.MeshStandardMaterial({ color: 0xd8b488, roughness: 0.85 }),
+      roof: new THREE.MeshStandardMaterial({ color: 0x86363a, roughness: 0.9 }),
+      block: new THREE.MeshStandardMaterial({ color: 0x8ba4cd, roughness: 0.55, metalness: 0.3 }),
+      tower: new THREE.MeshStandardMaterial({ color: 0x9ba4bc, roughness: 0.5, metalness: 0.36 }),
+      mega: new THREE.MeshStandardMaterial({ color: 0xa49eb9, roughness: 0.46, metalness: 0.42 }),
+      ring: new THREE.MeshStandardMaterial({ color: 0x11172e, emissive: 0x111e43, emissiveIntensity: 0.48, roughness: 0.55 }),
+      core: new THREE.MeshBasicMaterial({ color: 0x000000 }),
+      marker: new THREE.MeshBasicMaterial({ color: 0x53d1ff, transparent: true, opacity: 0.78 })
     };
 
     const state = {
+      started: false,
       running: false,
-      stageIndex: 0,
+      stage: 0,
       score: 0,
       eaten: 0,
-      holeSize: 1.0,
       combo: 1,
       comboTimer: 0,
-      sprintEnergy: 1,
+      size: 1,
+      speedBoost: 1,
+      sprint: 1,
       objects: [],
       keys: {},
-      pointerDown: false,
-      pointerWorld: new THREE.Vector3(),
-      usePointerMove: false,
-      topDownHeight: 34,
-      topDownOffsetZ: 6,
+      velocity: new THREE.Vector3(),
+      worldSize: stageConfigs[0].world,
+      clickTarget: null,
+      camHeight: 36,
+      camTiltOffset: 8,
+      pointerNdc: new THREE.Vector2()
     };
 
-    let ground = null;
-    let roadGroup = null;
+    let ground, roads;
+    const raycaster = new THREE.Raycaster();
+    const groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
 
-    const holeGroup = new THREE.Group();
-    scene.add(holeGroup);
+    const hole = new THREE.Group();
+    const ring = new THREE.Mesh(new THREE.CylinderGeometry(1.1, 1.8, 0.32, 36, 1, true), mats.ring);
+    ring.rotation.x = Math.PI / 2;
+    ring.castShadow = true;
+    ring.receiveShadow = true;
+    const core = new THREE.Mesh(new THREE.CircleGeometry(0.96, 36), mats.core);
+    core.rotation.x = -Math.PI / 2;
+    core.position.y = -0.17;
+    hole.add(ring, core);
+    hole.position.set(0, 0.12, 0);
+    scene.add(hole);
 
-    const holeRing = new THREE.Mesh(new THREE.CylinderGeometry(1.1, 1.8, 0.35, 40, 1, true), materials.holeRing);
-    holeRing.rotation.x = Math.PI / 2;
-    holeRing.castShadow = true;
-    holeRing.receiveShadow = true;
-    holeGroup.add(holeRing);
-
-    const holeCore = new THREE.Mesh(new THREE.CircleGeometry(0.95, 40), new THREE.MeshBasicMaterial({ color: 0x000000 }));
-    holeCore.rotation.x = -Math.PI / 2;
-    holeCore.position.y = -0.17;
-    holeGroup.add(holeCore);
-
-    const vortexParticles = new THREE.Group();
-    for (let i = 0; i < 26; i++) {
-      const p = new THREE.Mesh(
-        new THREE.SphereGeometry(0.045 + Math.random() * 0.04, 8, 8),
-        new THREE.MeshBasicMaterial({ color: i % 2 ? 0x69d2ff : 0x945cff })
-      );
-      vortexParticles.add(p);
-    }
-    holeGroup.add(vortexParticles);
+    const clickMarker = new THREE.Mesh(new THREE.RingGeometry(0.45, 0.66, 28), mats.marker);
+    clickMarker.rotation.x = -Math.PI / 2;
+    clickMarker.position.y = 0.03;
+    clickMarker.visible = false;
+    scene.add(clickMarker);
 
     const ui = {
       size: document.getElementById('sizeText'),
-      eaten: document.getElementById('eatenText'),
       score: document.getElementById('scoreText'),
+      eaten: document.getElementById('eatenText'),
       stage: document.getElementById('stageText'),
-      progressBar: document.getElementById('progressBar'),
-      progressLabel: document.getElementById('progressLabel'),
-      objective: document.getElementById('objectiveText'),
+      progress: document.getElementById('progressBar'),
+      progressText: document.getElementById('progressText'),
+      goal: document.getElementById('goalText'),
       combo: document.getElementById('comboText'),
-      center: document.getElementById('centerMessage'),
-      start: document.getElementById('startBtn'),
+      center: document.getElementById('center'),
+      startBtn: document.getElementById('startBtn')
     };
 
-    const raycaster = new THREE.Raycaster();
-    const pointerNdc = new THREE.Vector2();
-    const groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
-
-    function seededRandom(seed) {
-      return function () {
-        seed = (seed * 1664525 + 1013904223) % 4294967296;
+    function seeded(seed) {
+      return () => {
+        seed = (seed * 1664525 + 1013904223) >>> 0;
         return seed / 4294967296;
       };
     }
 
-    function setSky(theme) {
-      const c = `radial-gradient(circle at 20% 10%, #${theme.top.toString(16).padStart(6, '0')}, #${theme.bottom.toString(16).padStart(6, '0')} 60%, #020307 100%)`;
-      document.body.style.background = c;
-      scene.fog.color.setHex(theme.bottom);
+    function setTheme(cfg) {
+      document.body.style.background = `radial-gradient(circle at 20% 12%, #${cfg.theme.skyA.toString(16).padStart(6, '0')}, #${cfg.theme.skyB.toString(16).padStart(6, '0')} 58%, #05070f 100%)`;
+      scene.fog.color.setHex(cfg.theme.skyB);
     }
 
-    function clearStage() {
-      for (const obj of state.objects) {
-        scene.remove(obj.mesh);
-        obj.mesh.geometry.dispose?.();
-      }
+    function clearWorld() {
+      state.objects.forEach(o => scene.remove(o.mesh));
       state.objects = [];
       if (ground) scene.remove(ground);
-      if (roadGroup) scene.remove(roadGroup);
+      if (roads) scene.remove(roads);
     }
 
-    function addConsumable(mesh, radius, points) {
-      mesh.castShadow = true;
-      mesh.receiveShadow = true;
+    function addObject(mesh, consumeRadius, needSize, points) {
       scene.add(mesh);
-      state.objects.push({ mesh, radius, points, eaten: false, wobble: Math.random() * Math.PI * 2, scaleTarget: 1 });
+      state.objects.push({ mesh, consumeRadius, needSize, points, eaten: false, wobble: Math.random() * Math.PI * 2 });
     }
 
-    function randomPos(rand, limit) {
-      return (rand() - 0.5) * limit;
+    function randPos(rng, span) {
+      return (rng() - 0.5) * span;
     }
 
-    function spawnCity(stageCfg) {
-      clearStage();
-      setSky(stageCfg.theme);
+    function spawnStage(index) {
+      const cfg = stageConfigs[index];
+      state.worldSize = cfg.world;
+      clearWorld();
+      setTheme(cfg);
 
-      const size = stageCfg.groundSize;
-      ground = new THREE.Mesh(
-        new THREE.PlaneGeometry(size, size, 1, 1),
-        new THREE.MeshStandardMaterial({ color: stageCfg.theme.ground, roughness: 1.0, metalness: 0.05 })
-      );
+      ground = new THREE.Mesh(new THREE.PlaneGeometry(cfg.world, cfg.world), mats.ground.clone());
+      ground.material.color.setHex(cfg.theme.ground);
       ground.rotation.x = -Math.PI / 2;
       ground.receiveShadow = true;
       scene.add(ground);
 
-      roadGroup = new THREE.Group();
-      scene.add(roadGroup);
-      const laneStep = 20 / stageCfg.density;
-      for (let x = -size / 2; x <= size / 2; x += laneStep) {
-        const road = new THREE.Mesh(new THREE.BoxGeometry(4, 0.06, size), materials.asphalt);
-        road.position.set(x, 0.03, 0);
+      roads = new THREE.Group();
+      scene.add(roads);
+      for (let x = -cfg.world / 2; x <= cfg.world / 2; x += 14) {
+        const road = new THREE.Mesh(new THREE.BoxGeometry(2.9, 0.05, cfg.world), mats.asphalt);
+        road.position.set(x, 0.028, 0);
         road.receiveShadow = true;
-        roadGroup.add(road);
+        roads.add(road);
       }
-      for (let z = -size / 2; z <= size / 2; z += laneStep) {
-        const road = new THREE.Mesh(new THREE.BoxGeometry(size, 0.06, 4), materials.asphalt);
-        road.position.set(0, 0.03, z);
+      for (let z = -cfg.world / 2; z <= cfg.world / 2; z += 14) {
+        const road = new THREE.Mesh(new THREE.BoxGeometry(cfg.world, 0.05, 2.9), mats.asphalt);
+        road.position.set(0, 0.028, z);
         road.receiveShadow = true;
-        roadGroup.add(road);
+        roads.add(road);
       }
 
-      const rand = seededRandom((state.stageIndex + 1) * 314159);
+      const rng = seeded((index + 7) * 73421);
 
-      for (const set of stageCfg.spawnSets) {
+      const makeTree = () => {
+        const g = new THREE.Group();
+        const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.22, 1.5, 9), mats.treeTrunk);
+        trunk.position.y = 0.75;
+        const top = new THREE.Mesh(new THREE.SphereGeometry(0.85 + rng() * 0.35, 11, 9), mats.treeTop);
+        top.position.y = 1.75;
+        g.add(trunk, top);
+        return { mesh: g, consumeRadius: 0.82, needSize: 0.86, points: 25, y: 0 };
+      };
+
+      const makeHouse = () => {
+        const g = new THREE.Group();
+        const w = 2.7 + rng() * 1.8;
+        const d = 2.7 + rng() * 1.8;
+        const h = 1.8 + rng() * 1.1;
+        const base = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mats.house.clone());
+        base.material.color.offsetHSL((rng() - 0.5) * 0.08, 0, (rng() - 0.5) * 0.1);
+        base.position.y = h / 2;
+        const roof = new THREE.Mesh(new THREE.ConeGeometry(Math.max(w, d) * 0.7, 1.0, 4), mats.roof.clone());
+        roof.position.y = h + 0.5;
+        roof.rotation.y = Math.PI / 4;
+        g.add(base, roof);
+        return { mesh: g, consumeRadius: Math.max(w, d) * 0.48, needSize: Math.max(w, d) * 0.52, points: 68 + Math.round(h * 12), y: 0 };
+      };
+
+      const makeBlock = () => {
+        const w = 3 + rng() * 1.5;
+        const d = 3 + rng() * 1.5;
+        const h = 4 + rng() * 6;
+        const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mats.block.clone());
+        m.position.y = h / 2;
+        m.material.color.offsetHSL((rng() - 0.5) * 0.04, 0, (rng() - 0.5) * 0.08);
+        return { mesh: m, consumeRadius: Math.max(w, d) * 0.56, needSize: Math.max(w, d) * 0.64, points: 160 + Math.round(h * 24), y: h / 2 };
+      };
+
+      const makeTower = () => {
+        const w = 4.8 + rng() * 2.3;
+        const d = 4.8 + rng() * 2.3;
+        const h = 12 + rng() * 16;
+        const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mats.tower.clone());
+        m.position.y = h / 2;
+        return { mesh: m, consumeRadius: Math.max(w, d) * 0.58, needSize: Math.max(w, d) * 0.7, points: 540 + Math.round(h * 34), y: h / 2 };
+      };
+
+      const makeMega = () => {
+        const g = new THREE.Group();
+        const bW = 7 + rng() * 3;
+        const bD = 7 + rng() * 3;
+        const bH = 10 + rng() * 7;
+        const tW = bW * (0.58 + rng() * 0.14);
+        const tD = bD * (0.58 + rng() * 0.14);
+        const tH = 16 + rng() * 14;
+        const b = new THREE.Mesh(new THREE.BoxGeometry(bW, bH, bD), mats.mega.clone());
+        const t = new THREE.Mesh(new THREE.BoxGeometry(tW, tH, tD), mats.mega.clone());
+        b.position.y = bH / 2;
+        t.position.y = bH + tH / 2;
+        g.add(b, t);
+        return { mesh: g, consumeRadius: Math.max(bW, bD) * 0.7, needSize: Math.max(bW, bD) * 0.86, points: 1400 + Math.round(tH * 50), y: 0 };
+      };
+
+      for (const set of cfg.sets) {
         for (let i = 0; i < set.count; i++) {
-          const x = randomPos(rand, size * 0.92);
-          const z = randomPos(rand, size * 0.92);
-          const yaw = rand() * Math.PI * 2;
-          let mesh, radius, points;
+          const x = randPos(rng, cfg.world * 0.9);
+          const z = randPos(rng, cfg.world * 0.9);
+          let data;
 
-          if (set.kind === 'street') {
-            if (rand() > 0.45) {
-              mesh = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.75, 2.2), materials.car.clone());
-              mesh.material.color.offsetHSL((rand() - 0.5) * 0.25, 0, (rand() - 0.5) * 0.15);
-              radius = 0.8;
-              points = 18;
+          if (set.kind === 'small') {
+            if (rng() > 0.4) {
+              const car = new THREE.Mesh(new THREE.BoxGeometry(1.16, 0.7, 2.1), mats.car.clone());
+              car.material.color.offsetHSL((rng() - 0.5) * 0.2, 0, (rng() - 0.5) * 0.12);
+              car.position.y = 0.45;
+              data = { mesh: car, consumeRadius: 0.78, needSize: 0.72, points: 16, y: 0.45 };
             } else {
-              mesh = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.2, 2.4, 10), materials.post);
-              radius = 0.45;
-              points = 10;
+              const post = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.16, 2.2, 10), mats.post);
+              post.position.y = 1.1;
+              data = { mesh: post, consumeRadius: 0.42, needSize: 0.52, points: 10, y: 1.1 };
             }
-            mesh.position.y = 0.5;
           }
+          if (set.kind === 'trees') data = makeTree();
+          if (set.kind === 'house') data = makeHouse();
+          if (set.kind === 'block') data = makeBlock();
+          if (set.kind === 'tower') data = makeTower();
+          if (set.kind === 'mega') data = makeMega();
 
-          if (set.kind === 'park') {
-            const g = new THREE.Group();
-            const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.3, 1.6, 9), materials.trunk);
-            trunk.position.y = 0.8;
-            const leaves = new THREE.Mesh(new THREE.SphereGeometry(0.95 + rand() * 0.45, 12, 10), materials.tree);
-            leaves.position.y = 1.9;
-            g.add(trunk, leaves);
-            mesh = g;
-            radius = 0.85;
-            points = 24;
-            mesh.position.y = 0;
-          }
-
-          if (set.kind === 'homes') {
-            const g = new THREE.Group();
-            const w = 2.8 + rand() * 2;
-            const h = 1.8 + rand() * 1.4;
-            const d = 2.8 + rand() * 2;
-            const body = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), materials.house.clone());
-            body.material.color.offsetHSL((rand() - 0.5) * 0.06, 0, (rand() - 0.5) * 0.09);
-            body.position.y = h / 2;
-            const roof = new THREE.Mesh(new THREE.ConeGeometry(Math.max(w, d) * 0.72, 1.1, 4), materials.roof.clone());
-            roof.position.y = h + 0.55;
-            roof.rotation.y = Math.PI / 4;
-            g.add(body, roof);
-            mesh = g;
-            radius = Math.max(w, d) * 0.45;
-            points = Math.round(40 + h * 8);
-          }
-
-          if (set.kind === 'mid') {
-            const w = 3.4 + rand() * 2;
-            const d = 3.4 + rand() * 2;
-            const h = 4 + rand() * 9;
-            mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), materials.tower.clone());
-            mesh.material.color.offsetHSL((rand() - 0.5) * 0.04, 0, (rand() - 0.5) * 0.06);
-            mesh.position.y = h / 2;
-            radius = Math.max(w, d) * 0.58;
-            points = Math.round(120 + h * 20);
-          }
-
-          if (set.kind === 'towers') {
-            const w = 4.8 + rand() * 2.6;
-            const d = 4.8 + rand() * 2.6;
-            const h = 13 + rand() * 20;
-            mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), materials.tower.clone());
-            mesh.material.color.offsetHSL((rand() - 0.5) * 0.08, 0.1, (rand() - 0.5) * 0.1);
-            mesh.position.y = h / 2;
-            radius = Math.max(w, d) * 0.64;
-            points = Math.round(350 + h * 40);
-          }
-
-          if (set.kind === 'mega') {
-            const g = new THREE.Group();
-            const baseW = 7 + rand() * 4;
-            const baseD = 7 + rand() * 4;
-            const baseH = 8 + rand() * 7;
-            const topW = baseW * (0.6 + rand() * 0.12);
-            const topD = baseD * (0.6 + rand() * 0.12);
-            const topH = 15 + rand() * 15;
-
-            const base = new THREE.Mesh(new THREE.BoxGeometry(baseW, baseH, baseD), materials.mega.clone());
-            base.position.y = baseH / 2;
-            const top = new THREE.Mesh(new THREE.BoxGeometry(topW, topH, topD), materials.mega.clone());
-            top.position.y = baseH + topH / 2;
-            top.material.color.offsetHSL((rand() - 0.5) * 0.03, 0.04, (rand() - 0.5) * 0.08);
-            g.add(base, top);
-
-            mesh = g;
-            radius = Math.max(baseW, baseD) * 0.75;
-            points = Math.round(1200 + topH * 70);
-          }
-
-          mesh.position.x = x;
-          mesh.position.z = z;
-          mesh.rotation.y = yaw;
-          addConsumable(mesh, radius, points);
+          data.mesh.position.x = x;
+          data.mesh.position.z = z;
+          data.mesh.rotation.y = rng() * Math.PI * 2;
+          data.mesh.castShadow = true;
+          data.mesh.receiveShadow = true;
+          addObject(data.mesh, data.consumeRadius, data.needSize, data.points);
         }
       }
     }
 
-    function resetStateForStage(index) {
-      state.stageIndex = index;
-      state.score = 0;
-      state.eaten = 0;
+    function setPlayState(index, fullReset = true) {
+      state.stage = index;
+      if (fullReset) {
+        state.score = 0;
+        state.eaten = 0;
+        state.size = 1;
+        hole.scale.setScalar(1);
+      }
       state.combo = 1;
       state.comboTimer = 0;
-      state.sprintEnergy = 1;
-      state.holeSize = 1.0;
-      holeGroup.position.set(0, 0.13, 0);
-      holeGroup.scale.setScalar(1);
-      state.topDownHeight = 34;
-      state.topDownOffsetZ = 6;
-      state.usePointerMove = false;
-      spawnCity(stageConfigs[index]);
+      state.sprint = 1;
+      state.velocity.set(0, 0, 0);
+      state.clickTarget = null;
+      clickMarker.visible = false;
+      hole.position.set(0, 0.12, 0);
+      state.camHeight = 36 + state.size * 1.2;
+      state.camTiltOffset = 8 + state.size * 0.35;
+      spawnStage(index);
       ui.center.classList.add('hidden');
       state.running = true;
+      state.started = true;
       updateUI();
     }
 
-    function advanceStage() {
-      if (state.stageIndex < stageConfigs.length - 1) {
-        const next = state.stageIndex + 1;
+    function stageFinished() {
+      if (state.stage < stageConfigs.length - 1) {
+        const next = state.stage + 1;
+        state.running = false;
         ui.center.innerHTML = `
           <h1>✅ Stage completado</h1>
-          <p>Pasás al <strong>${stageConfigs[next].name}</strong>.</p>
-          <p class="accent">Mapa más grande, objetos más pesados y más densidad.</p>
-          <button id="continueBtn">Continuar</button>
+          <p>Pasás a <strong>${stageConfigs[next].name}</strong>.</p>
+          <p class="accent">Ahora hay más densidad y estructuras más pesadas.</p>
+          <button id="nextBtn">Continuar</button>
         `;
         ui.center.classList.remove('hidden');
-        ui.center.querySelector('#continueBtn').onclick = () => resetStateForStage(next);
-        state.running = false;
+        ui.center.querySelector('#nextBtn').onclick = () => setPlayState(next, false);
       } else {
+        state.running = false;
         ui.center.innerHTML = `
-          <h1>🏆 ¡Ciudad devorada!</h1>
-          <p>Superaste todos los stages y consumiste la mega metrópolis.</p>
-          <p>Puntaje final total del stage: <strong>${Math.round(state.score)}</strong></p>
-          <button id="restartAllBtn">Jugar de nuevo</button>
+          <h1>🏆 Ciudad absorbida</h1>
+          <p>Terminaste todos los stages.</p>
+          <p>Puntaje: <strong>${Math.round(state.score).toLocaleString('es-AR')}</strong></p>
+          <button id="restartBtn">Volver a jugar</button>
         `;
         ui.center.classList.remove('hidden');
-        ui.center.querySelector('#restartAllBtn').onclick = () => resetStateForStage(0);
-        state.running = false;
+        ui.center.querySelector('#restartBtn').onclick = () => setPlayState(0, true);
       }
     }
 
-    function canEat(obj) {
-      return state.holeSize >= obj.radius * 0.95;
-    }
-
-    function consumeObject(obj) {
+    function consume(obj) {
       obj.eaten = true;
-      obj.scaleTarget = 0.01;
       state.eaten += 1;
-      state.comboTimer = 2.4;
-      state.combo = Math.min(5, state.combo + 0.08);
-      const gained = obj.points * state.combo;
-      state.score += gained;
-      state.holeSize += Math.max(0.016, obj.radius * 0.009);
-      holeGroup.scale.setScalar(state.holeSize);
-      state.topDownHeight = 34 + state.holeSize * 1.45;
-      state.topDownOffsetZ = 6 + state.holeSize * 0.45;
+      state.comboTimer = 2.5;
+      state.combo = Math.min(6, state.combo + 0.07);
+      state.score += obj.points * state.combo;
+      state.size += Math.max(0.015, obj.consumeRadius * 0.0088);
+      hole.scale.setScalar(state.size);
+      state.camHeight = THREE.MathUtils.clamp(34 + state.size * 1.45, 28, 68);
+      state.camTiltOffset = THREE.MathUtils.clamp(8 + state.size * 0.5, 5, 24);
     }
 
     function updateUI() {
-      const stageCfg = stageConfigs[state.stageIndex];
-      ui.size.textContent = state.holeSize.toFixed(2);
-      ui.eaten.textContent = String(state.eaten);
+      const cfg = stageConfigs[state.stage];
+      ui.size.textContent = state.size.toFixed(2);
       ui.score.textContent = Math.round(state.score).toLocaleString('es-AR');
-      ui.stage.textContent = `${state.stageIndex + 1} / ${stageConfigs.length}`;
+      ui.eaten.textContent = String(state.eaten);
+      ui.stage.textContent = `${state.stage + 1} / ${stageConfigs.length}`;
 
-      const p = Math.min(1, state.score / stageCfg.goalScore);
-      ui.progressBar.style.width = `${(p * 100).toFixed(1)}%`;
-      ui.progressLabel.textContent = p < 1
-        ? `Progreso del stage: ${(p * 100).toFixed(1)}%`
-        : 'Objetivo cumplido: andá por el siguiente stage';
+      const p = Math.min(1, state.score / cfg.targetScore);
+      ui.progress.style.width = `${(p * 100).toFixed(1)}%`;
+      ui.progressText.textContent = p < 1
+        ? `Progreso: ${(p * 100).toFixed(1)}% · objetivo ${cfg.targetScore.toLocaleString('es-AR')}`
+        : 'Objetivo alcanzado: avanzá de stage';
 
-      ui.objective.textContent = `Comibles restantes: ${state.objects.filter(o => !o.eaten).length}`;
+      const left = state.objects.filter(o => !o.eaten).length;
+      ui.goal.textContent = `Comibles restantes: ${left}`;
       ui.combo.textContent = `Combo x${state.combo.toFixed(2)}`;
-      ui.combo.className = state.combo > 2.5 ? 'danger' : 'ok';
+      ui.combo.className = state.combo > 2.3 ? 'warn' : 'ok';
     }
 
-    function tickVortex(time) {
-      const t = time * 0.002;
-      const radius = 0.5 + state.holeSize * 0.28;
-      vortexParticles.children.forEach((p, i) => {
-        const a = t * (1.7 + i * 0.02) + i * 0.35;
-        const r = radius * (0.35 + (i % 5) * 0.14);
-        p.position.set(Math.cos(a) * r, -0.05 - (i % 6) * 0.035, Math.sin(a) * r);
-      });
+    function screenToWorld(clientX, clientY) {
+      state.pointerNdc.x = (clientX / window.innerWidth) * 2 - 1;
+      state.pointerNdc.y = -(clientY / window.innerHeight) * 2 + 1;
+      raycaster.setFromCamera(state.pointerNdc, camera);
+      const hit = new THREE.Vector3();
+      return raycaster.ray.intersectPlane(groundPlane, hit) ? hit : null;
     }
 
-    function update(dt, time) {
+    function step(dt) {
       if (!state.running) return;
+      const cfg = stageConfigs[state.stage];
 
-      const stageCfg = stageConfigs[state.stageIndex];
-      const move = new THREE.Vector3();
+      const input = new THREE.Vector3();
+      if (state.keys['KeyW'] || state.keys['ArrowUp']) input.z -= 1;
+      if (state.keys['KeyS'] || state.keys['ArrowDown']) input.z += 1;
+      if (state.keys['KeyA'] || state.keys['ArrowLeft']) input.x -= 1;
+      if (state.keys['KeyD'] || state.keys['ArrowRight']) input.x += 1;
 
-      if (state.usePointerMove) {
-        const dxp = state.pointerWorld.x - holeGroup.position.x;
-        const dzp = state.pointerWorld.z - holeGroup.position.z;
-        const d = Math.hypot(dxp, dzp);
-        if (d > 0.9) {
-          move.x += dxp / d;
-          move.z += dzp / d;
+      if (state.clickTarget) {
+        const dx = state.clickTarget.x - hole.position.x;
+        const dz = state.clickTarget.z - hole.position.z;
+        const d = Math.hypot(dx, dz);
+        if (d > 0.85) {
+          input.x += dx / d;
+          input.z += dz / d;
+          clickMarker.position.set(state.clickTarget.x, 0.03, state.clickTarget.z);
+          clickMarker.visible = true;
+          clickMarker.rotation.z += dt * 2;
+        } else {
+          state.clickTarget = null;
+          clickMarker.visible = false;
         }
       }
 
-      if (state.keys['KeyW'] || state.keys['ArrowUp']) move.z -= 1;
-      if (state.keys['KeyS'] || state.keys['ArrowDown']) move.z += 1;
-      if (state.keys['KeyA'] || state.keys['ArrowLeft']) move.x -= 1;
-      if (state.keys['KeyD'] || state.keys['ArrowRight']) move.x += 1;
-      if (move.lengthSq() > 0) move.normalize();
+      if (input.lengthSq() > 0) input.normalize();
 
-      const baseSpeed = 10 + state.holeSize * 2.3;
-      let speed = baseSpeed;
-      if ((state.keys['ShiftLeft'] || state.keys['ShiftRight']) && state.sprintEnergy > 0.02) {
-        speed *= 1.45;
-        state.sprintEnergy = Math.max(0, state.sprintEnergy - dt * 0.28);
+      let accel = 35 + state.size * 6;
+      let maxSpeed = 9.5 + state.size * 2.2;
+      if ((state.keys['ShiftLeft'] || state.keys['ShiftRight']) && state.sprint > 0.02) {
+        maxSpeed *= 1.45;
+        accel *= 1.25;
+        state.sprint = Math.max(0, state.sprint - dt * 0.34);
       } else {
-        state.sprintEnergy = Math.min(1, state.sprintEnergy + dt * 0.16);
+        state.sprint = Math.min(1, state.sprint + dt * 0.2);
       }
-      if (state.keys['Space'] && state.sprintEnergy > 0.1) {
-        speed *= 1.25;
-        state.sprintEnergy = Math.max(0, state.sprintEnergy - dt * 0.20);
+      if (state.keys['Space'] && state.sprint > 0.14) {
+        state.sprint = Math.max(0, state.sprint - dt * 0.4);
+        state.speedBoost = 1.45;
+      }
+      state.speedBoost = THREE.MathUtils.lerp(state.speedBoost, 1, dt * 3.6);
+      maxSpeed *= state.speedBoost;
+
+      const targetVel = input.multiplyScalar(maxSpeed);
+      state.velocity.x = THREE.MathUtils.lerp(state.velocity.x, targetVel.x, dt * Math.min(1, accel * 0.06));
+      state.velocity.z = THREE.MathUtils.lerp(state.velocity.z, targetVel.z, dt * Math.min(1, accel * 0.06));
+
+      if (input.lengthSq() < 1e-4) {
+        state.velocity.x *= Math.max(0, 1 - dt * 7.8);
+        state.velocity.z *= Math.max(0, 1 - dt * 7.8);
       }
 
-      holeGroup.position.x += move.x * speed * dt;
-      holeGroup.position.z += move.z * speed * dt;
+      hole.position.x += state.velocity.x * dt;
+      hole.position.z += state.velocity.z * dt;
 
-      const bound = stageCfg.groundSize / 2 - 2;
-      holeGroup.position.x = THREE.MathUtils.clamp(holeGroup.position.x, -bound, bound);
-      holeGroup.position.z = THREE.MathUtils.clamp(holeGroup.position.z, -bound, bound);
+      const limit = cfg.world / 2 - 1.3;
+      hole.position.x = THREE.MathUtils.clamp(hole.position.x, -limit, limit);
+      hole.position.z = THREE.MathUtils.clamp(hole.position.z, -limit, limit);
 
       for (const obj of state.objects) {
         if (obj.eaten) {
-          obj.mesh.scale.lerp(new THREE.Vector3(0.01, 0.01, 0.01), dt * 10);
-          obj.mesh.position.y -= dt * 2.8;
-          if (obj.mesh.position.y < -5) scene.remove(obj.mesh);
+          obj.mesh.scale.multiplyScalar(Math.max(0.01, 1 - dt * 8));
+          obj.mesh.position.y -= dt * 3.2;
+          if (obj.mesh.position.y < -8) scene.remove(obj.mesh);
           continue;
         }
 
         obj.wobble += dt;
-        obj.mesh.position.y += Math.sin(obj.wobble * 2.6) * dt * 0.02;
+        obj.mesh.position.y += Math.sin(obj.wobble * 2.5) * dt * 0.018;
 
-        const dx = obj.mesh.position.x - holeGroup.position.x;
-        const dz = obj.mesh.position.z - holeGroup.position.z;
-        const dist = Math.hypot(dx, dz);
-        const attractRange = state.holeSize * 2.8;
+        const dx = obj.mesh.position.x - hole.position.x;
+        const dz = obj.mesh.position.z - hole.position.z;
+        const d = Math.hypot(dx, dz);
 
-        if (dist < attractRange) {
-          const pull = (1 - dist / attractRange) * dt * (1.5 + state.holeSize * 0.3);
-          obj.mesh.position.x -= dx * pull;
-          obj.mesh.position.z -= dz * pull;
-          obj.mesh.rotation.y += dt * 4;
+        const pullRange = state.size * 3.2;
+        if (d < pullRange) {
+          const can = state.size >= obj.needSize;
+          const force = (1 - d / pullRange) * dt * (can ? (2.2 + state.size * 0.35) : 0.45);
+          obj.mesh.position.x -= dx * force;
+          obj.mesh.position.z -= dz * force;
+          obj.mesh.rotation.y += dt * 3.5;
         }
 
-        if (dist < state.holeSize * 1.05 && canEat(obj)) {
-          consumeObject(obj);
+        if (d < state.size * 1.08 && state.size >= obj.needSize) {
+          consume(obj);
         }
       }
 
       state.comboTimer -= dt;
-      if (state.comboTimer <= 0) {
-        state.combo = Math.max(1, state.combo - dt * 0.9);
+      if (state.comboTimer <= 0) state.combo = Math.max(1, state.combo - dt * 0.9);
+
+      if (state.score >= cfg.targetScore || state.objects.every(o => o.eaten)) {
+        stageFinished();
       }
 
-      if (state.score >= stageCfg.goalScore || state.objects.every(o => o.eaten)) {
-        advanceStage();
-      }
+      const camTarget = new THREE.Vector3(hole.position.x, state.camHeight, hole.position.z + state.camTiltOffset);
+      camera.position.lerp(camTarget, dt * 5.5);
+      cameraLook.set(hole.position.x, 0, hole.position.z);
+      camera.lookAt(cameraLook);
 
-      const target = new THREE.Vector3(
-        holeGroup.position.x,
-        state.topDownHeight,
-        holeGroup.position.z + state.topDownOffsetZ
-      );
-      camera.position.lerp(target, dt * 6.5);
-      camPivot.position.copy(holeGroup.position);
-      camera.lookAt(camPivot.position.x, 0, camPivot.position.z);
-
-      tickVortex(time);
       updateUI();
     }
 
-    let last = performance.now();
-    function animate(now) {
-      const dt = Math.min(0.033, (now - last) / 1000);
-      last = now;
-      update(dt, now);
-      renderer.render(scene, camera);
-      requestAnimationFrame(animate);
-    }
-
     function resize() {
-      const w = window.innerWidth;
-      const h = window.innerHeight;
-      renderer.setSize(w, h, false);
-      camera.aspect = w / h;
+      renderer.setSize(window.innerWidth, window.innerHeight, false);
+      camera.aspect = window.innerWidth / window.innerHeight;
       camera.updateProjectionMatrix();
     }
-
     window.addEventListener('resize', resize);
     resize();
 
     window.addEventListener('keydown', (e) => {
       state.keys[e.code] = true;
-      if (e.code === 'KeyR') resetStateForStage(state.stageIndex);
+      if (e.code === 'KeyR' && state.started) setPlayState(state.stage, false);
     });
-    window.addEventListener('keyup', (e) => { state.keys[e.code] = false; });
-
-    function updatePointerTarget(clientX, clientY) {
-      pointerNdc.x = (clientX / window.innerWidth) * 2 - 1;
-      pointerNdc.y = -(clientY / window.innerHeight) * 2 + 1;
-      raycaster.setFromCamera(pointerNdc, camera);
-      const hit = new THREE.Vector3();
-      if (raycaster.ray.intersectPlane(groundPlane, hit)) {
-        state.pointerWorld.copy(hit);
-      }
-    }
+    window.addEventListener('keyup', (e) => state.keys[e.code] = false);
 
     window.addEventListener('pointerdown', (e) => {
-      state.pointerDown = true;
-      state.usePointerMove = true;
-      updatePointerTarget(e.clientX, e.clientY);
+      const p = screenToWorld(e.clientX, e.clientY);
+      if (p) {
+        state.clickTarget = p.clone();
+        clickMarker.position.set(p.x, 0.03, p.z);
+        clickMarker.visible = true;
+      }
     });
-    window.addEventListener('pointerup', () => { state.pointerDown = false; });
-    window.addEventListener('pointermove', (e) => {
-      if (!state.pointerDown) return;
-      updatePointerTarget(e.clientX, e.clientY);
-    });
+
     window.addEventListener('wheel', (e) => {
-      state.topDownHeight = THREE.MathUtils.clamp(state.topDownHeight + e.deltaY * 0.02, 20, 70);
-      state.topDownOffsetZ = THREE.MathUtils.clamp(state.topDownOffsetZ + e.deltaY * 0.004, 2, 24);
+      state.camHeight = THREE.MathUtils.clamp(state.camHeight + e.deltaY * 0.02, 24, 76);
+      state.camTiltOffset = THREE.MathUtils.clamp(state.camTiltOffset + e.deltaY * 0.006, 4, 30);
     }, { passive: true });
 
-    ui.start.onclick = () => resetStateForStage(0);
+    ui.startBtn.onclick = () => setPlayState(0, true);
 
-    spawnCity(stageConfigs[0]);
-    animate(performance.now());
+    spawnStage(0);
+    updateUI();
+
+    let last = performance.now();
+    function loop(now) {
+      const dt = Math.min(0.033, (now - last) / 1000);
+      last = now;
+      step(dt);
+      renderer.render(scene, camera);
+      requestAnimationFrame(loop);
+    }
+    loop(performance.now());
   </script>
 </body>
 </html>
