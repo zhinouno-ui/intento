@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<!-- saved from url=(0055)file:///C:/Users/PC/Downloads/ai_studio_code%20(2).html -->
+<html lang="es"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Blockudoku Omniverse Edition</title>
+    <style>
+        :root {
+            --bg: #030712;
+            --card: #111827;
+            --primary: #06b6d4;
+            --secondary: #a855f7;
+            --accent: #f43f5e;
+            --grid-line: #1f2937;
+            --sudoku-border: #3b82f6;
+        }
+
+        body {
+            font-family: 'Segoe UI', Roboto, sans-serif;
+            background-color: var(--bg);
+            color: white;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            overflow: hidden;
+            touch-action: none;
+            user-select: none;
+        }
+
+        .header {
+            width: 100%;
+            max-width: 450px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .score-display {
+            background: var(--card);
+            padding: 10px 20px;
+            border-radius: 12px;
+            border: 1px solid var(--grid-line);
+            box-shadow: 0 0 15px rgba(6, 182, 212, 0.2);
+        }
+
+        .val { display: block; font-size: 24px; font-weight: 900; color: var(--primary); text-align: center;}
+        .lbl { font-size: 10px; opacity: 0.6; text-transform: uppercase; letter-spacing: 1px;}
+
+        #board {
+            display: grid;
+            grid-template-columns: repeat(9, 42px);
+            grid-template-rows: repeat(9, 42px);
+            gap: 2px;
+            background: var(--grid-line);
+            padding: 4px;
+            border-radius: 8px;
+            border: 2px solid var(--grid-line);
+            position: relative;
+        }
+
+        .cell {
+            width: 42px;
+            height: 42px;
+            background: var(--bg);
+            border-radius: 3px;
+            position: relative;
+        }
+
+        /* Divisiones Sudoku */
+        .cell[data-col="2"], .cell[data-col="5"] { border-right: 3px solid var(--sudoku-border); }
+        .cell[data-row="2"], .cell[data-row="5"] { border-bottom: 3px solid var(--sudoku-border); }
+
+        .cell.filled {
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            box-shadow: inset 0 0 10px rgba(255,255,255,0.3);
+            animation: popIn 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        @keyframes popIn { 0% { transform: scale(0.5); } 100% { transform: scale(1); } }
+
+        .cell.ghost { background: rgba(6, 182, 212, 0.2); }
+
+        .tray {
+            margin-top: 30px;
+            display: flex;
+            gap: 15px;
+            height: 140px;
+            width: 100%;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .slot {
+            width: 120px;
+            height: 120px;
+            background: rgba(255,255,255,0.02);
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 1px dashed rgba(255,255,255,0.1);
+        }
+
+        .floating-piece {
+            position: fixed;
+            pointer-events: none;
+            display: grid;
+            z-index: 9999;
+            filter: drop-shadow(0 0 20px var(--primary));
+            transition: transform 0.05s linear;
+        }
+
+        .p-block {
+            width: 42px;
+            height: 42px;
+            background: var(--primary);
+            border-radius: 4px;
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+
+        .mini-block {
+            width: 16px;
+            height: 16px;
+            background: var(--primary);
+            border-radius: 2px;
+        }
+
+        .shake { animation: shake 0.4s cubic-bezier(.36,.07,.19,.97) both; }
+        @keyframes shake {
+            10%, 90% { transform: translate3d(-1px, 0, 0); }
+            20%, 80% { transform: translate3d(2px, 0, 0); }
+            30%, 50%, 70% { transform: translate3d(-3px, 0, 0); }
+        }
+
+        .clearing-anim {
+            animation: clear 0.5s ease-out forwards;
+        }
+        @keyframes clear {
+            0% { transform: scale(1); filter: brightness(3); opacity: 1; }
+            100% { transform: scale(0); opacity: 0; }
+        }
+
+        #game-over {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.9);
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 10000;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <div class="score-display">
+            <span class="lbl">High Score</span>
+            <span class="val" id="high-score">3020</span>
+        </div>
+        <div class="score-display">
+            <span class="lbl">Puntos</span>
+            <span class="val" id="score">0</span>
+        </div>
+    </div>
+
+    <div id="board"><div class="cell" data-row="0" data-col="0"></div><div class="cell" data-row="0" data-col="1"></div><div class="cell" data-row="0" data-col="2"></div><div class="cell" data-row="0" data-col="3"></div><div class="cell" data-row="0" data-col="4"></div><div class="cell" data-row="0" data-col="5"></div><div class="cell" data-row="0" data-col="6"></div><div class="cell" data-row="0" data-col="7"></div><div class="cell" data-row="0" data-col="8"></div><div class="cell" data-row="1" data-col="0"></div><div class="cell" data-row="1" data-col="1"></div><div class="cell" data-row="1" data-col="2"></div><div class="cell" data-row="1" data-col="3"></div><div class="cell" data-row="1" data-col="4"></div><div class="cell" data-row="1" data-col="5"></div><div class="cell" data-row="1" data-col="6"></div><div class="cell" data-row="1" data-col="7"></div><div class="cell" data-row="1" data-col="8"></div><div class="cell" data-row="2" data-col="0"></div><div class="cell" data-row="2" data-col="1"></div><div class="cell" data-row="2" data-col="2"></div><div class="cell" data-row="2" data-col="3"></div><div class="cell" data-row="2" data-col="4"></div><div class="cell" data-row="2" data-col="5"></div><div class="cell" data-row="2" data-col="6"></div><div class="cell" data-row="2" data-col="7"></div><div class="cell" data-row="2" data-col="8"></div><div class="cell" data-row="3" data-col="0"></div><div class="cell" data-row="3" data-col="1"></div><div class="cell" data-row="3" data-col="2"></div><div class="cell" data-row="3" data-col="3"></div><div class="cell" data-row="3" data-col="4"></div><div class="cell" data-row="3" data-col="5"></div><div class="cell" data-row="3" data-col="6"></div><div class="cell" data-row="3" data-col="7"></div><div class="cell" data-row="3" data-col="8"></div><div class="cell" data-row="4" data-col="0"></div><div class="cell" data-row="4" data-col="1"></div><div class="cell" data-row="4" data-col="2"></div><div class="cell" data-row="4" data-col="3"></div><div class="cell" data-row="4" data-col="4"></div><div class="cell" data-row="4" data-col="5"></div><div class="cell" data-row="4" data-col="6"></div><div class="cell" data-row="4" data-col="7"></div><div class="cell" data-row="4" data-col="8"></div><div class="cell" data-row="5" data-col="0"></div><div class="cell" data-row="5" data-col="1"></div><div class="cell" data-row="5" data-col="2"></div><div class="cell" data-row="5" data-col="3"></div><div class="cell" data-row="5" data-col="4"></div><div class="cell" data-row="5" data-col="5"></div><div class="cell" data-row="5" data-col="6"></div><div class="cell" data-row="5" data-col="7"></div><div class="cell" data-row="5" data-col="8"></div><div class="cell" data-row="6" data-col="0"></div><div class="cell" data-row="6" data-col="1"></div><div class="cell" data-row="6" data-col="2"></div><div class="cell" data-row="6" data-col="3"></div><div class="cell" data-row="6" data-col="4"></div><div class="cell" data-row="6" data-col="5"></div><div class="cell" data-row="6" data-col="6"></div><div class="cell" data-row="6" data-col="7"></div><div class="cell" data-row="6" data-col="8"></div><div class="cell" data-row="7" data-col="0"></div><div class="cell" data-row="7" data-col="1"></div><div class="cell" data-row="7" data-col="2"></div><div class="cell" data-row="7" data-col="3"></div><div class="cell" data-row="7" data-col="4"></div><div class="cell" data-row="7" data-col="5"></div><div class="cell" data-row="7" data-col="6"></div><div class="cell" data-row="7" data-col="7"></div><div class="cell" data-row="7" data-col="8"></div><div class="cell" data-row="8" data-col="0"></div><div class="cell" data-row="8" data-col="1"></div><div class="cell" data-row="8" data-col="2"></div><div class="cell" data-row="8" data-col="3"></div><div class="cell" data-row="8" data-col="4"></div><div class="cell" data-row="8" data-col="5"></div><div class="cell" data-row="8" data-col="6"></div><div class="cell" data-row="8" data-col="7"></div><div class="cell" data-row="8" data-col="8"></div></div>
+
+    <div class="tray" id="tray">
+        <div class="slot" id="slot-0"><div style="display: grid; grid-template-rows: repeat(1, 16px); grid-template-columns: repeat(4, 16px); gap: 2px;"><div class="mini-block" style="grid-area: 1 / 1;"></div><div class="mini-block" style="grid-area: 1 / 2;"></div><div class="mini-block" style="grid-area: 1 / 3;"></div><div class="mini-block" style="grid-area: 1 / 4;"></div></div></div>
+        <div class="slot" id="slot-1"><div style="display: grid; grid-template-rows: repeat(4, 16px); grid-template-columns: repeat(2, 16px); gap: 2px;"><div class="mini-block" style="grid-area: 1 / 1;"></div><div class="mini-block" style="grid-area: 2 / 1;"></div><div class="mini-block" style="grid-area: 3 / 1;"></div><div class="mini-block" style="grid-area: 4 / 1;"></div><div class="mini-block" style="grid-area: 4 / 2;"></div></div></div>
+        <div class="slot" id="slot-2"><div style="display: grid; grid-template-rows: repeat(4, 16px); grid-template-columns: repeat(2, 16px); gap: 2px;"><div class="mini-block" style="grid-area: 1 / 1;"></div><div class="mini-block" style="grid-area: 2 / 1;"></div><div class="mini-block" style="grid-area: 3 / 1;"></div><div class="mini-block" style="grid-area: 4 / 1;"></div><div class="mini-block" style="grid-area: 4 / 2;"></div></div></div>
+    </div>
+
+    <div id="game-over">
+        <h1 style="color: var(--accent); font-size: 48px;">GAME OVER</h1>
+        <button onclick="location.reload()" style="padding: 15px 30px; border-radius: 30px; border: none; background: var(--primary); color: white; font-weight: bold; cursor: pointer;">REINTENTAR</button>
+    </div>
+
+    <script>
+        // --- LIBRERÍA MASIVA DE FORMAS ---
+        const SHAPES = {
+            // Básicos
+            dot: [[0,0]],
+            h2: [[0,0],[0,1]], v2: [[0,0],[1,0]],
+            h3: [[0,0],[0,1],[0,2]], v3: [[0,0],[1,0],[2,0]],
+            h4: [[0,0],[0,1],[0,2],[0,3]], v4: [[0,0],[1,0],[2,0],[3,0]],
+            h5: [[0,0],[0,1],[0,2],[0,3],[0,4]], v5: [[0,0],[1,0],[2,0],[3,0],[4,0]],
+            
+            // Tetris Clásicos
+            sq2: [[0,0],[0,1],[1,0],[1,1]],
+            t1: [[0,1],[1,0],[1,1],[1,2]],
+            l1: [[0,0],[1,0],[2,0],[2,1]], l2: [[0,1],[1,1],[2,1],[2,0]],
+            s1: [[0,1],[0,2],[1,0],[1,1]], z1: [[0,0],[0,1],[1,1],[1,2]],
+            
+            // Pentominós y raros
+            plus: [[0,1],[1,0],[1,1],[1,2],[2,1]],
+            u_shape: [[0,0],[0,2],[1,0],[1,1],[1,2]],
+            big_l: [[0,0],[1,0],[2,0],[3,0],[3,1]],
+            stairs: [[0,0],[1,0],[1,1],[2,1],[2,2]],
+            c_shape: [[0,0],[0,1],[1,0],[2,0],[2,1]],
+            w_shape: [[0,0],[1,0],[1,1],[2,1],[2,2]],
+            f_pent: [[0,1],[0,2],[1,0],[1,1],[2,1]],
+            long_z: [[0,0],[0,1],[1,1],[2,1],[2,2]],
+            hook: [[0,0],[0,1],[1,0],[2,0],[3,0]],
+            big_v: [[0,0],[1,0],[2,0],[2,1],[2,2]],
+            
+            // Gigantes (Ayuda: no suelen salir mucho a menos que el tablero esté vacío)
+            sq3: [[0,0],[0,1],[0,2],[1,0],[1,1],[1,2],[2,0],[2,1],[2,2]],
+            cross_big: [[0,2],[1,2],[2,0],[2,1],[2,2],[2,3],[2,4],[3,2],[4,2]],
+            frame: [[0,0],[0,1],[0,2],[1,0],[1,2],[2,0],[2,1],[2,2]]
+        };
+
+        const CATEGORIES = {
+            RESCUE: ['dot', 'h2', 'v2', 'h3', 'v3', 'sq2'],
+            NORMAL: ['t1', 'l1', 'l2', 's1', 'z1', 'h4', 'v4', 'plus', 'u_shape'],
+            HARD: ['h5', 'v5', 'big_l', 'stairs', 'c_shape', 'w_shape', 'f_pent', 'sq3', 'frame', 'cross_big']
+        };
+
+        // Estado del Juego
+        let board = Array(9).fill().map(() => Array(9).fill(0));
+        let score = 0;
+        let highScore = localStorage.getItem('blockudoku_high') || 0;
+        let pieces = [null, null, null];
+        let dragging = null;
+        let dragEl = null;
+
+        const boardEl = document.getElementById('board');
+        const scoreEl = document.getElementById('score');
+        const highEl = document.getElementById('high-score');
+        highEl.innerText = highScore;
+
+        // Audio (Sintetizado)
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        function playSfx(f, type = 'sine', d = 0.2, v = 0.1) {
+            const osc = audioCtx.createOscillator();
+            const g = audioCtx.createGain();
+            osc.type = type; osc.frequency.setValueAtTime(f, audioCtx.currentTime);
+            g.gain.setValueAtTime(v, audioCtx.currentTime);
+            g.gain.exponentialRampToValueAtTime(0.00001, audioCtx.currentTime + d);
+            osc.connect(g); g.connect(audioCtx.destination);
+            osc.start(); osc.stop(audioCtx.currentTime + d);
+        }
+
+        function init() {
+            for(let r=0; r<9; r++){
+                for(let c=0; c<9; c++){
+                    const cell = document.createElement('div');
+                    cell.className = 'cell';
+                    cell.dataset.row = r;
+                    cell.dataset.col = c;
+                    boardEl.appendChild(cell);
+                }
+            }
+            spawnPieces();
+            updateBoardUI();
+        }
+
+        function spawnPieces() {
+            const filled = board.flat().filter(x => x).length;
+            
+            for(let i=0; i<3; i++) {
+                let pool;
+                if (filled > 50) pool = CATEGORIES.RESCUE;
+                else if (filled > 30) pool = [...CATEGORIES.RESCUE, ...CATEGORIES.NORMAL];
+                else pool = [...CATEGORIES.NORMAL, ...CATEGORIES.HARD];
+                
+                const name = pool[Math.floor(Math.random() * pool.length)];
+                pieces[i] = SHAPES[name];
+            }
+            renderTray();
+        }
+
+        function renderTray() {
+            [0,1,2].forEach(i => {
+                const slot = document.getElementById(`slot-${i}`);
+                slot.innerHTML = '';
+                if(!pieces[i]) return;
+
+                const shape = pieces[i];
+                const grid = document.createElement('div');
+                grid.style.display = 'grid';
+                const rMax = Math.max(...shape.map(p => p[0])) + 1;
+                const cMax = Math.max(...shape.map(p => p[1])) + 1;
+                grid.style.gridTemplateRows = `repeat(${rMax}, 16px)`;
+                grid.style.gridTemplateColumns = `repeat(${cMax}, 16px)`;
+                grid.style.gap = '2px';
+
+                shape.forEach(p => {
+                    const b = document.createElement('div');
+                    b.className = 'mini-block';
+                    b.style.gridRow = p[0] + 1;
+                    b.style.gridColumn = p[1] + 1;
+                    grid.appendChild(b);
+                });
+                slot.appendChild(grid);
+                slot.onpointerdown = (e) => startDrag(e, i);
+            });
+        }
+
+        function startDrag(e, index) {
+            if(audioCtx.state === 'suspended') audioCtx.resume();
+            dragging = { index, shape: pieces[index] };
+            
+            dragEl = document.createElement('div');
+            dragEl.className = 'floating-piece';
+            const rMax = Math.max(...dragging.shape.map(p => p[0])) + 1;
+            const cMax = Math.max(...dragging.shape.map(p => p[1])) + 1;
+            dragEl.style.gridTemplateRows = `repeat(${rMax}, 42px)`;
+            dragEl.style.gridTemplateColumns = `repeat(${cMax}, 42px)`;
+            dragEl.style.gap = '2px';
+
+            dragging.shape.forEach(p => {
+                const b = document.createElement('div');
+                b.className = 'p-block';
+                b.style.gridRow = p[0] + 1;
+                b.style.gridColumn = p[1] + 1;
+                dragEl.appendChild(b);
+            });
+
+            document.body.appendChild(dragEl);
+            document.getElementById(`slot-${index}`).style.opacity = 0.3;
+            updateDragPos(e);
+            playSfx(400, 'sine', 0.1);
+        }
+
+        function updateDragPos(e) {
+            if(!dragEl) return;
+            const x = e.clientX;
+            const y = e.clientY - 120; // Offset para visibilidad
+            dragEl.style.left = `${x - 21}px`;
+            dragEl.style.top = `${y - 21}px`;
+
+            clearGhosts();
+            const target = getCellAt(x, y);
+            if(target && canPlace(dragging.shape, target.r, target.c)) {
+                dragging.shape.forEach(([dr, dc]) => {
+                    const c = document.querySelector(`.cell[data-row="${target.r+dr}"][data-col="${target.c+dc}"]`);
+                    if(c) c.classList.add('ghost');
+                });
+            }
+        }
+
+        function getCellAt(x, y) {
+            const el = document.elementFromPoint(x, y);
+            if(el && el.classList.contains('cell')) {
+                return { r: parseInt(el.dataset.row), c: parseInt(el.dataset.col) };
+            }
+            return null;
+        }
+
+        function canPlace(shape, r, c) {
+            return shape.every(([dr, dc]) => {
+                const nr = r + dr, nc = c + dc;
+                return nr >= 0 && nr < 9 && nc >= 0 && nc < 9 && board[nr][nc] === 0;
+            });
+        }
+
+        function clearGhosts() {
+            document.querySelectorAll('.cell.ghost').forEach(c => c.classList.remove('ghost'));
+        }
+
+        window.onpointermove = updateDragPos;
+        window.onpointerup = (e) => {
+            if(!dragging) return;
+            const x = e.clientX;
+            const y = e.clientY - 120;
+            const target = getCellAt(x, y);
+
+            if(target && canPlace(dragging.shape, target.r, target.c)) {
+                placePiece(dragging.shape, target.r, target.c, dragging.index);
+            } else {
+                document.getElementById(`slot-${dragging.index}`).style.opacity = 1;
+                playSfx(150, 'triangle', 0.2);
+            }
+
+            dragEl.remove();
+            dragEl = null;
+            dragging = null;
+            clearGhosts();
+            if(!checkAnyMovePossible()) {
+                document.getElementById('game-over').style.display = 'flex';
+            }
+        };
+
+        function placePiece(shape, r, c, idx) {
+            shape.forEach(([dr, dc]) => board[r + dr][c + dc] = 1);
+            pieces[idx] = null;
+            score += shape.length * 10;
+            playSfx(600 + (score % 100), 'sine', 0.1);
+            
+            checkClears();
+            updateBoardUI();
+
+            if(pieces.every(p => p === null)) spawnPieces();
+            else renderTray();
+
+            if(score > highScore) {
+                highScore = score;
+                localStorage.setItem('blockudoku_high', highScore);
+                highEl.innerText = highScore;
+            }
+        }
+
+        function checkClears() {
+            let toClear = []; // {r, c}
+            
+            // Filas y Columnas
+            for(let i=0; i<9; i++) {
+                if(board[i].every(v => v === 1)) {
+                    for(let c=0; c<9; c++) toClear.push({r:i, c});
+                }
+                let col = [];
+                for(let r=0; r<9; r++) col.push(board[r][i]);
+                if(col.every(v => v === 1)) {
+                    for(let r=0; r<9; r++) toClear.push({r, c:i});
+                }
+            }
+            // Sectores 3x3
+            for(let sr=0; sr<9; sr+=3) {
+                for(let sc=0; sc<9; sc+=3) {
+                    let sec = [];
+                    for(let r=sr; r<sr+3; r++) for(let c=sc; c<sc+3; c++) sec.push({r, c});
+                    if(sec.every(p => board[p.r][p.c] === 1)) {
+                        sec.forEach(p => toClear.push(p));
+                    }
+                }
+            }
+
+            if(toClear.length > 0) {
+                playSfx(880, 'square', 0.3);
+                playSfx(1200, 'sine', 0.2);
+                boardEl.classList.add('shake');
+                setTimeout(() => boardEl.classList.remove('shake'), 400);
+
+                toClear.forEach(p => {
+                    if(board[p.r][p.c] === 1) {
+                        board[p.r][p.c] = 0;
+                        score += 15;
+                        const cEl = document.querySelector(`.cell[data-row="${p.r}"][data-col="${p.c}"]`);
+                        cEl.classList.add('clearing-anim');
+                        setTimeout(() => cEl.classList.remove('clearing-anim'), 500);
+                    }
+                });
+            }
+        }
+
+        function checkAnyMovePossible() {
+            return pieces.some(p => {
+                if(!p) return true; // Slot vacío no bloquea
+                for(let r=0; r<9; r++){
+                    for(let c=0; c<9; c++){
+                        if(canPlace(p, r, c)) return true;
+                    }
+                }
+                return false;
+            });
+        }
+
+        function updateBoardUI() {
+            document.querySelectorAll('.cell').forEach(c => {
+                const isFilled = board[c.dataset.row][c.dataset.col] === 1;
+                c.classList.toggle('filled', isFilled);
+            });
+            scoreEl.innerText = score;
+        }
+
+        init();
+    </script>
+
+</body></html>
