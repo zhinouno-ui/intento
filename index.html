@@ -169,9 +169,72 @@
       display: none;
       align-items: center;
       justify-content: center;
-      flex-direction: column;
+      padding: 20px;
       background: rgba(0, 0, 0, 0.84);
       z-index: 10000;
+    }
+
+    .game-over-card {
+      width: min(92vw, 420px);
+      border-radius: 20px;
+      border: 1px solid rgba(148, 163, 184, 0.35);
+      background: linear-gradient(160deg, rgba(15, 23, 42, 0.98), rgba(2, 6, 23, 0.98));
+      box-shadow: 0 25px 45px rgba(0, 0, 0, 0.45);
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      text-align: center;
+    }
+
+    .game-over-title {
+      font-size: clamp(34px, 8vw, 48px);
+      color: var(--accent);
+      margin: 0;
+      line-height: 1;
+      letter-spacing: 1px;
+    }
+
+    .game-over-subtitle {
+      margin: 0;
+      color: #cbd5e1;
+      font-size: 14px;
+      opacity: 0.95;
+    }
+
+    .game-over-stats {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      text-align: center;
+    }
+
+    .game-stat {
+      border-radius: 12px;
+      border: 1px solid rgba(100, 116, 139, 0.45);
+      background: rgba(15, 23, 42, 0.82);
+      padding: 10px 8px;
+    }
+
+    .game-stat strong {
+      display: block;
+      color: var(--primary);
+      font-size: 22px;
+      line-height: 1.1;
+    }
+
+    .game-stat span {
+      font-size: 10px;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      opacity: 0.76;
+    }
+
+    .game-over-actions {
+      display: flex;
+      gap: 10px;
+      justify-content: center;
+      flex-wrap: wrap;
     }
 
     .shake { animation: shake 0.35s cubic-bezier(.36,.07,.19,.97); }
@@ -199,9 +262,18 @@
   </div>
 
   <div id="game-over">
-    <h1 style="font-size:48px;color:var(--accent);margin:0;">GAME OVER</h1>
-    <p id="final-score"></p>
-    <button class="btn" onclick="location.reload()">Reintentar</button>
+    <div class="game-over-card">
+      <h1 class="game-over-title">GAME OVER</h1>
+      <p class="game-over-subtitle" id="game-over-subtitle">La IA ya está analizando una revancha.</p>
+      <div class="game-over-stats">
+        <div class="game-stat"><strong id="final-score">0</strong><span>Puntos</span></div>
+        <div class="game-stat"><strong id="final-turns">0</strong><span>Turnos</span></div>
+        <div class="game-stat"><strong id="final-clears">0</strong><span>Bloques limpiados</span></div>
+      </div>
+      <div class="game-over-actions">
+        <button class="btn" id="retry-btn">Reintentar</button>
+      </div>
+    </div>
   </div>
 
   <script>
@@ -235,14 +307,17 @@
     let dragging = null;
     let dragEl = null;
     let turn = 0;
+    let totalClears = 0;
     let assistCooldown = 0;
     let hintPulse = null;
+    let gameEnded = false;
 
     const boardEl = document.getElementById('board');
     const scoreEl = document.getElementById('score');
     const highEl = document.getElementById('high-score');
     const freeEl = document.getElementById('free-cells');
     const hintStatusEl = document.getElementById('hint-status');
+    const gameOverEl = document.getElementById('game-over');
     highEl.textContent = highScore;
 
     const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -300,13 +375,65 @@
       return [...map.values()];
     }
 
-    function evaluatePlacement(shape, r, c) {
-      const sim = board.map(row=>[...row]);
+    function simulatePlacement(baseBoard, shape, r, c) {
+      const sim = baseBoard.map(row => [...row]);
       shape.forEach(([dr,dc]) => sim[r+dr][c+dc] = 1);
       const clears = collectClears(sim);
+      clears.forEach(({r:rr, c:cc}) => sim[rr][cc] = 0);
+      return { sim, clears: clears.length };
+    }
+
+    function boardMetrics(simBoard) {
+      const free = simBoard.flat().filter(v => v===0).length;
+      const crowdedRows = simBoard.reduce((acc, row) => acc + (row.filter(v=>v===1).length >= 7 ? 1 : 0), 0);
+      const crowdedCols = Array.from({length:9}, (_,c) => simBoard.map(r => r[c]).filter(v=>v===1).length)
+        .reduce((acc, amount) => acc + (amount >= 7 ? 1 : 0), 0);
+      return { free, pressure: crowdedRows + crowdedCols };
+    }
+
+    function evaluatePlacement(shape, r, c, idx) {
+      const first = simulatePlacement(board, shape, r, c);
       const touchedRows = new Set(shape.map(([dr])=>r+dr)).size;
       const touchedCols = new Set(shape.map(([,dc])=>c+dc)).size;
-      return clears.length * 4 + shape.length * 2 + touchedRows + touchedCols;
+      const firstMetrics = boardMetrics(first.sim);
+
+      let followBest = -Infinity;
+      let followMoves = 0;
+      for (let j=0;j<3;j++) {
+        if (j === idx || !pieces[j]) continue;
+        const candidate = pieces[j];
+        for (let rr=0;rr<9;rr++) {
+          for (let cc=0;cc<9;cc++) {
+            const can = candidate.every(([dr,dc]) => {
+              const nr = rr + dr, nc = cc + dc;
+              return nr>=0 && nr<9 && nc>=0 && nc<9 && first.sim[nr][nc]===0;
+            });
+            if (!can) continue;
+            followMoves++;
+            const second = simulatePlacement(first.sim, candidate, rr, cc);
+            const secondMetrics = boardMetrics(second.sim);
+            const secondScore = second.clears * 22 + secondMetrics.free * 0.26 - secondMetrics.pressure * 4.8;
+            if (secondScore > followBest) followBest = secondScore;
+          }
+        }
+      }
+      if (!Number.isFinite(followBest)) followBest = -26;
+
+      const rescueBonus = pieceMeta[idx]?.assist ? 8 : 0;
+      return {
+        value:
+          shape.length * 8.5 +
+          first.clears * 24 +
+          touchedRows * 1.2 +
+          touchedCols * 1.2 +
+          firstMetrics.free * 0.35 -
+          firstMetrics.pressure * 5.5 +
+          followMoves * 0.85 +
+          followBest * 0.45 +
+          rescueBonus,
+        firstClears: first.clears,
+        followMoves
+      };
     }
 
     function pickSpawnShape(slotIndex) {
@@ -442,9 +569,10 @@
     }
 
     function placePiece(shape, r, c, idx) {
+      if (gameEnded) return;
       shape.forEach(([dr,dc]) => board[r+dr][c+dc] = 1);
       score += shape.length * 10;
-      clearAndScore();
+      totalClears += clearAndScore();
       pieces[idx] = null;
       pieceMeta[idx] = {assist:false};
       turn++;
@@ -466,8 +594,10 @@
         const shape = pieces[i];
         if (!shape) continue;
         for (const pos of allPlacements(shape)) {
-          const value = evaluatePlacement(shape, pos.r, pos.c) + (pieceMeta[i]?.assist ? 8 : 0);
-          if (!best || value > best.value) best = { idx:i, shape, ...pos, value };
+          const prediction = evaluatePlacement(shape, pos.r, pos.c, i);
+          if (!best || prediction.value > best.value) {
+            best = { idx:i, shape, ...pos, ...prediction };
+          }
         }
       }
       return best;
@@ -485,7 +615,7 @@
         cell?.classList.add(kind === 'ok' ? 'hint-ok' : 'hint');
       });
       const cellsFree = getFreeCells();
-      hintStatusEl.textContent = `IA: prueba pieza ${move.idx + 1} en (${move.r + 1},${move.c + 1}) · libres: ${cellsFree}`;
+      hintStatusEl.textContent = `IA: pieza ${move.idx + 1} en (${move.r + 1},${move.c + 1}) · clears:${move.firstClears} · futuro:${move.followMoves}`;
       if (hintPulse) clearTimeout(hintPulse);
       hintPulse = setTimeout(clearHighlights, 1700);
     }
@@ -511,13 +641,38 @@
     }
 
     function showGameOver() {
-      document.getElementById('final-score').textContent = `Puntaje final: ${score}`;
-      document.getElementById('game-over').style.display = 'flex';
+      gameEnded = true;
+      document.getElementById('final-score').textContent = score;
+      document.getElementById('final-turns').textContent = turn;
+      document.getElementById('final-clears').textContent = totalClears;
+      const subtitle = score >= highScore
+        ? 'Nuevo récord desbloqueado. ¡Muy buena partida!'
+        : `Te faltaron ${highScore - score} puntos para el récord.`;
+      document.getElementById('game-over-subtitle').textContent = subtitle;
+      gameOverEl.style.display = 'flex';
+      clearHighlights();
+      if (hintPulse) clearTimeout(hintPulse);
+    }
+
+    function resetGame() {
+      for (let r=0;r<9;r++) for (let c=0;c<9;c++) board[r][c] = 0;
+      score = 0;
+      pieces = [null, null, null];
+      pieceMeta = [{assist:false},{assist:false},{assist:false}];
+      turn = 0;
+      totalClears = 0;
+      assistCooldown = 0;
+      gameEnded = false;
+      clearHighlights();
+      gameOverEl.style.display = 'none';
+      hintStatusEl.textContent = 'IA: analizando tablero…';
+      spawnPieces();
+      updateBoardUI();
     }
 
     window.onpointermove = updateDragPos;
     window.onpointerup = e => {
-      if (!dragging) return;
+      if (gameEnded || !dragging) return;
       const x = e.clientX, y = e.clientY - 110;
       const target = getCellAt(x,y);
       if (target && canPlace(dragging.shape, target.r, target.c)) {
@@ -535,6 +690,7 @@
     };
 
     document.getElementById('hint-btn').addEventListener('click', () => applyHint('hint'));
+    document.getElementById('retry-btn').addEventListener('click', resetGame);
 
     initBoard();
     spawnPieces();
