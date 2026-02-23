@@ -32,19 +32,29 @@
       touch-action: none;
       user-select: none;
       overflow: hidden;
+      padding-bottom: 10px;
     }
 
-    .header {
-      width: min(98vw, 520px);
-      margin-top: 10px;
+    .header,
+    .telemetry {
+      width: min(98vw, 560px);
       display: grid;
-      grid-template-columns: repeat(3, 1fr);
       gap: 10px;
       align-items: stretch;
     }
 
+    .header {
+      margin-top: 10px;
+      grid-template-columns: repeat(3, 1fr);
+    }
+
+    .telemetry {
+      margin-top: 8px;
+      grid-template-columns: repeat(4, 1fr);
+    }
+
     .score-display {
-      background: linear-gradient(145deg, rgba(17, 24, 39, 0.9), rgba(2, 6, 23, 0.95));
+      background: linear-gradient(145deg, rgba(17, 24, 39, 0.92), rgba(2, 6, 23, 0.96));
       border: 1px solid var(--line);
       border-radius: 14px;
       padding: 9px 12px;
@@ -52,11 +62,17 @@
       box-shadow: 0 0 18px rgba(34, 211, 238, 0.1);
     }
 
+    .score-display.mini {
+      padding: 7px 8px;
+      border-radius: 12px;
+    }
+
     .val { display: block; font-size: 24px; font-weight: 900; color: var(--primary); }
+    .val.mini { font-size: 17px; }
     .lbl { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; opacity: 0.75; }
 
     .status {
-      width: min(98vw, 520px);
+      width: min(98vw, 560px);
       margin: 8px 0 10px;
       display: flex;
       gap: 10px;
@@ -64,10 +80,13 @@
       justify-content: space-between;
     }
 
+    .actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+
     #hint-status {
       font-size: 13px;
       color: #cbd5e1;
       min-height: 1em;
+      max-width: 300px;
     }
 
     .btn {
@@ -78,9 +97,34 @@
       padding: 8px 14px;
       font-weight: 700;
       cursor: pointer;
+      font-size: 13px;
     }
 
     .btn:hover { border-color: var(--primary); }
+    .btn.secondary { border-color: #475569; opacity: 0.92; }
+    .btn.warn { border-color: #ef4444; }
+
+    .progress-wrap {
+      width: min(98vw, 560px);
+      margin-top: -2px;
+      margin-bottom: 8px;
+    }
+
+    .progress-track {
+      height: 8px;
+      border-radius: 999px;
+      background: rgba(71, 85, 105, 0.35);
+      border: 1px solid rgba(100, 116, 139, 0.4);
+      overflow: hidden;
+    }
+
+    #level-progress {
+      height: 100%;
+      width: 0%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, var(--ok), var(--primary));
+      transition: width .2s ease;
+    }
 
     #board {
       display: grid;
@@ -115,7 +159,7 @@
 
     .tray {
       margin-top: 16px;
-      width: min(98vw, 520px);
+      width: min(98vw, 560px);
       display: flex;
       justify-content: center;
       gap: 10px;
@@ -163,6 +207,13 @@
       border: 1px solid rgba(255,255,255,0.25);
     }
 
+    .legend {
+      margin-top: 9px;
+      font-size: 11px;
+      color: #94a3b8;
+      opacity: 0.9;
+    }
+
     #game-over {
       position: fixed;
       inset: 0;
@@ -175,7 +226,7 @@
     }
 
     .game-over-card {
-      width: min(92vw, 420px);
+      width: min(92vw, 430px);
       border-radius: 20px;
       border: 1px solid rgba(148, 163, 184, 0.35);
       background: linear-gradient(160deg, rgba(15, 23, 42, 0.98), rgba(2, 6, 23, 0.98));
@@ -239,6 +290,15 @@
 
     .shake { animation: shake 0.35s cubic-bezier(.36,.07,.19,.97); }
     @keyframes shake { 20%,80% {transform:translateX(2px);} 30%,50%,70%{transform:translateX(-3px);} }
+
+    @media (max-width: 600px) {
+      .header, .telemetry, .status, .tray, .progress-wrap { width: min(98vw, 520px); }
+      .status { flex-direction: column; align-items: stretch; }
+      .actions { justify-content: flex-start; }
+      #hint-status { max-width: unset; }
+      .telemetry { grid-template-columns: repeat(2, 1fr); }
+      body { overflow-y: auto; }
+    }
   </style>
 </head>
 <body>
@@ -248,9 +308,24 @@
     <div class="score-display"><span class="lbl">Espacios</span><span class="val" id="free-cells">81</span></div>
   </div>
 
+  <div class="telemetry">
+    <div class="score-display mini"><span class="lbl">Nivel</span><span class="val mini" id="level">1</span></div>
+    <div class="score-display mini"><span class="lbl">Combo</span><span class="val mini" id="combo">x0</span></div>
+    <div class="score-display mini"><span class="lbl">Movimientos</span><span class="val mini" id="moves">0</span></div>
+    <div class="score-display mini"><span class="lbl">IA Auto</span><span class="val mini" id="ai-state">ON</span></div>
+  </div>
+
   <div class="status">
     <span id="hint-status">IA: analizando tablero…</span>
-    <button class="btn" id="hint-btn">Sugerir jugada</button>
+    <div class="actions">
+      <button class="btn" id="hint-btn">Sugerir jugada</button>
+      <button class="btn secondary" id="undo-btn">Deshacer</button>
+      <button class="btn warn" id="reset-btn">Reiniciar</button>
+    </div>
+  </div>
+
+  <div class="progress-wrap">
+    <div class="progress-track"><div id="level-progress"></div></div>
   </div>
 
   <div id="board"></div>
@@ -261,10 +336,12 @@
     <div class="slot" id="slot-2"></div>
   </div>
 
+  <div class="legend">Atajos: <b>H</b> sugerencia · <b>U</b> deshacer · <b>R</b> reiniciar · <b>A</b> IA auto</div>
+
   <div id="game-over">
     <div class="game-over-card">
       <h1 class="game-over-title">GAME OVER</h1>
-      <p class="game-over-subtitle" id="game-over-subtitle">La IA ya está analizando una revancha.</p>
+      <p class="game-over-subtitle" id="game-over-subtitle">Acá tenés el botón <b>Reintentar</b> para volver a jugar al instante.</p>
       <div class="game-over-stats">
         <div class="game-stat"><strong id="final-score">0</strong><span>Puntos</span></div>
         <div class="game-stat"><strong id="final-turns">0</strong><span>Turnos</span></div>
@@ -272,6 +349,7 @@
       </div>
       <div class="game-over-actions">
         <button class="btn" id="retry-btn">Reintentar</button>
+        <button class="btn secondary" id="close-over-btn">Cerrar</button>
       </div>
     </div>
   </div>
@@ -301,6 +379,11 @@
 
     const board = Array.from({length:9},()=>Array(9).fill(0));
     let score = 0;
+    let level = 1;
+    let moves = 0;
+    let comboStreak = 0;
+    let maxCombo = 0;
+    let totalClears = 0;
     let highScore = Number(localStorage.getItem('blockudoku_high') || 0);
     let pieces = [null, null, null];
     let pieceMeta = [{assist:false},{assist:false},{assist:false}];
@@ -311,11 +394,18 @@
     let assistCooldown = 0;
     let hintPulse = null;
     let gameEnded = false;
+    let aiAuto = true;
+    let history = [];
 
     const boardEl = document.getElementById('board');
     const scoreEl = document.getElementById('score');
     const highEl = document.getElementById('high-score');
     const freeEl = document.getElementById('free-cells');
+    const levelEl = document.getElementById('level');
+    const comboEl = document.getElementById('combo');
+    const movesEl = document.getElementById('moves');
+    const aiStateEl = document.getElementById('ai-state');
+    const levelProgressEl = document.getElementById('level-progress');
     const hintStatusEl = document.getElementById('hint-status');
     const gameOverEl = document.getElementById('game-over');
     highEl.textContent = highScore;
@@ -342,20 +432,20 @@
       }
     }
 
-    function getFreeCells() { return board.flat().filter(v => v===0).length; }
-
+    function getFreeCells(simBoard = board) { return simBoard.flat().filter(v => v===0).length; }
     function randomFrom(list) { return list[Math.floor(Math.random()*list.length)]; }
+    function deepBoard(src) { return src.map(row => [...row]); }
 
-    function allPlacements(shape) {
+    function allPlacements(shape, simBoard = board) {
       const result = [];
-      for (let r=0;r<9;r++) for (let c=0;c<9;c++) if (canPlace(shape, r, c)) result.push({r,c});
+      for (let r=0;r<9;r++) for (let c=0;c<9;c++) if (canPlace(shape, r, c, simBoard)) result.push({r,c});
       return result;
     }
 
-    function canPlace(shape, r, c) {
+    function canPlace(shape, r, c, simBoard = board) {
       return shape.every(([dr,dc]) => {
         const nr = r+dr, nc = c+dc;
-        return nr>=0 && nr<9 && nc>=0 && nc<9 && board[nr][nc]===0;
+        return nr>=0 && nr<9 && nc>=0 && nc<9 && simBoard[nr][nc]===0;
       });
     }
 
@@ -376,7 +466,7 @@
     }
 
     function simulatePlacement(baseBoard, shape, r, c) {
-      const sim = baseBoard.map(row => [...row]);
+      const sim = deepBoard(baseBoard);
       shape.forEach(([dr,dc]) => sim[r+dr][c+dc] = 1);
       const clears = collectClears(sim);
       clears.forEach(({r:rr, c:cc}) => sim[rr][cc] = 0);
@@ -384,11 +474,20 @@
     }
 
     function boardMetrics(simBoard) {
-      const free = simBoard.flat().filter(v => v===0).length;
+      const free = getFreeCells(simBoard);
       const crowdedRows = simBoard.reduce((acc, row) => acc + (row.filter(v=>v===1).length >= 7 ? 1 : 0), 0);
       const crowdedCols = Array.from({length:9}, (_,c) => simBoard.map(r => r[c]).filter(v=>v===1).length)
         .reduce((acc, amount) => acc + (amount >= 7 ? 1 : 0), 0);
-      return { free, pressure: crowdedRows + crowdedCols };
+      const singleHoles = simBoard.flatMap((row, r) => row.map((v, c) => ({v,r,c})))
+        .filter(p => p.v===0)
+        .reduce((acc, p) => {
+          const adj = [[1,0],[-1,0],[0,1],[0,-1]]
+            .map(([dr,dc]) => [p.r+dr,p.c+dc])
+            .filter(([rr,cc]) => rr>=0 && rr<9 && cc>=0 && cc<9)
+            .filter(([rr,cc]) => simBoard[rr][cc]===0).length;
+          return acc + (adj <= 1 ? 1 : 0);
+        }, 0);
+      return { free, pressure: crowdedRows + crowdedCols, singleHoles };
     }
 
     function evaluatePlacement(shape, r, c, idx) {
@@ -401,45 +500,41 @@
       let followMoves = 0;
       for (let j=0;j<3;j++) {
         if (j === idx || !pieces[j]) continue;
-        const candidate = pieces[j];
-        for (let rr=0;rr<9;rr++) {
-          for (let cc=0;cc<9;cc++) {
-            const can = candidate.every(([dr,dc]) => {
-              const nr = rr + dr, nc = cc + dc;
-              return nr>=0 && nr<9 && nc>=0 && nc<9 && first.sim[nr][nc]===0;
-            });
-            if (!can) continue;
-            followMoves++;
-            const second = simulatePlacement(first.sim, candidate, rr, cc);
-            const secondMetrics = boardMetrics(second.sim);
-            const secondScore = second.clears * 22 + secondMetrics.free * 0.26 - secondMetrics.pressure * 4.8;
-            if (secondScore > followBest) followBest = secondScore;
-          }
+        for (const nextPos of allPlacements(pieces[j], first.sim)) {
+          followMoves++;
+          const second = simulatePlacement(first.sim, pieces[j], nextPos.r, nextPos.c);
+          const secondMetrics = boardMetrics(second.sim);
+          const secondScore = second.clears * 24 + secondMetrics.free * 0.32 - secondMetrics.pressure * 4.2 - secondMetrics.singleHoles * 1.5;
+          if (secondScore > followBest) followBest = secondScore;
         }
       }
-      if (!Number.isFinite(followBest)) followBest = -26;
+      if (!Number.isFinite(followBest)) followBest = -30;
 
-      const rescueBonus = pieceMeta[idx]?.assist ? 8 : 0;
+      const rescueBonus = pieceMeta[idx]?.assist ? 9 : 0;
       return {
         value:
-          shape.length * 8.5 +
-          first.clears * 24 +
-          touchedRows * 1.2 +
-          touchedCols * 1.2 +
-          firstMetrics.free * 0.35 -
-          firstMetrics.pressure * 5.5 +
-          followMoves * 0.85 +
-          followBest * 0.45 +
+          shape.length * 8.4 +
+          first.clears * 26 +
+          touchedRows * 1.1 +
+          touchedCols * 1.1 +
+          firstMetrics.free * 0.34 -
+          firstMetrics.pressure * 5.1 -
+          firstMetrics.singleHoles * 2.1 +
+          followMoves * 0.74 +
+          followBest * 0.48 +
           rescueBonus,
         firstClears: first.clears,
         followMoves
       };
     }
 
-    function pickSpawnShape(slotIndex) {
+    function pickSpawnShape() {
       const free = getFreeCells();
       const dense = 81 - free;
-      let pool = dense > 52 ? CATEGORIES.RESCUE : dense > 35 ? [...CATEGORIES.RESCUE, ...CATEGORIES.NORMAL] : [...CATEGORIES.NORMAL, ...CATEGORIES.HARD];
+      const levelHardBias = Math.min(Math.floor(level / 2), 4);
+      const normalPool = [...CATEGORIES.RESCUE, ...CATEGORIES.NORMAL];
+      const hardPool = [...normalPool, ...CATEGORIES.HARD, ...CATEGORIES.HARD.slice(0, levelHardBias)];
+      const pool = dense > 52 ? CATEGORIES.RESCUE : dense > 35 ? normalPool : hardPool;
       let assist = false;
 
       const noMovesNow = pieces.filter(Boolean).every(shape => allPlacements(shape).length === 0);
@@ -454,7 +549,7 @@
         }
       }
 
-      for (let tries=0; tries<14; tries++) {
+      for (let tries=0; tries<16; tries++) {
         const candidate = SHAPES[randomFrom(pool)];
         if (free > 20 || allPlacements(candidate).length > 0) return { shape: candidate, assist };
       }
@@ -468,13 +563,13 @@
     function spawnPieces() {
       for (let i=0;i<3;i++) {
         if (pieces[i]) continue;
-        const pick = pickSpawnShape(i);
+        const pick = pickSpawnShape();
         pieces[i] = pick.shape;
         pieceMeta[i] = { assist: pick.assist };
       }
       assistCooldown = Math.max(assistCooldown - 1, 0);
       renderTray();
-      autoHint(true);
+      if (aiAuto) autoHint(true);
     }
 
     function renderTray() {
@@ -504,7 +599,7 @@
     }
 
     function startDrag(e, idx) {
-      if (!pieces[idx]) return;
+      if (!pieces[idx] || gameEnded) return;
       if (audioCtx.state === 'suspended') audioCtx.resume();
       dragging = { idx, shape: pieces[idx] };
       dragEl = document.createElement('div');
@@ -518,7 +613,8 @@
       shape.forEach(([r,c]) => {
         const b = document.createElement('div');
         b.className = 'p-block';
-        b.style.gridRow = r+1; b.style.gridColumn = c+1;
+        b.style.gridRow = r+1;
+        b.style.gridColumn = c+1;
         dragEl.appendChild(b);
       });
       document.body.appendChild(dragEl);
@@ -557,35 +653,99 @@
       return pieces.some(shape => !shape || allPlacements(shape).length > 0);
     }
 
-    function clearAndScore() {
+    function clearBoardCells() {
       const clearList = collectClears(board);
-      if (!clearList.length) return 0;
       clearList.forEach(({r,c}) => board[r][c] = 0);
-      score += clearList.length * 15;
-      boardEl.classList.add('shake');
-      setTimeout(()=>boardEl.classList.remove('shake'), 300);
-      playSfx(940, 'square', 0.14); playSfx(1180, 'sine', 0.16);
       return clearList.length;
+    }
+
+    function saveHistory() {
+      history.push({
+        board: deepBoard(board),
+        score,
+        level,
+        moves,
+        comboStreak,
+        maxCombo,
+        totalClears,
+        highScore,
+        pieces: pieces.map(p => p ? p.map(([r,c]) => [r,c]) : null),
+        pieceMeta: pieceMeta.map(m => ({...m})),
+        turn,
+        assistCooldown,
+        gameEnded
+      });
+      if (history.length > 8) history.shift();
+    }
+
+    function undoMove() {
+      if (!history.length || gameEnded) {
+        hintStatusEl.textContent = gameEnded ? 'IA: no se puede deshacer con partida terminada.' : 'IA: no hay jugadas para deshacer.';
+        return;
+      }
+      const prev = history.pop();
+      for (let r=0;r<9;r++) for (let c=0;c<9;c++) board[r][c] = prev.board[r][c];
+      score = prev.score;
+      level = prev.level;
+      moves = prev.moves;
+      comboStreak = prev.comboStreak;
+      maxCombo = prev.maxCombo;
+      totalClears = prev.totalClears;
+      highScore = prev.highScore;
+      pieces = prev.pieces;
+      pieceMeta = prev.pieceMeta;
+      turn = prev.turn;
+      assistCooldown = prev.assistCooldown;
+      gameEnded = prev.gameEnded;
+      renderTray();
+      updateBoardUI();
+      hintStatusEl.textContent = 'IA: última jugada deshecha.';
+      playSfx(260, 'triangle', 0.1);
+    }
+
+    function applyScoring(clearedCells, shapeSize) {
+      let gain = shapeSize * 10;
+      if (clearedCells > 0) {
+        comboStreak++;
+        maxCombo = Math.max(maxCombo, comboStreak);
+        gain += Math.round(clearedCells * (12 + comboStreak * 3));
+      } else {
+        comboStreak = 0;
+      }
+      score += gain;
+      level = 1 + Math.floor(score / 900);
+      return gain;
     }
 
     function placePiece(shape, r, c, idx) {
       if (gameEnded) return;
+      saveHistory();
       shape.forEach(([dr,dc]) => board[r+dr][c+dc] = 1);
-      score += shape.length * 10;
-      totalClears += clearAndScore();
+      const clearedCells = clearBoardCells();
+      const gain = applyScoring(clearedCells, shape.length);
+      totalClears += clearedCells;
       pieces[idx] = null;
       pieceMeta[idx] = {assist:false};
       turn++;
+      moves++;
       if (score > highScore) {
         highScore = score;
         localStorage.setItem('blockudoku_high', highScore);
       }
+
+      if (clearedCells > 0) {
+        boardEl.classList.add('shake');
+        setTimeout(()=>boardEl.classList.remove('shake'), 300);
+        playSfx(920 + comboStreak * 35, 'square', 0.12);
+      }
+
       if (pieces.every(p => !p)) spawnPieces();
       else renderTray();
+
       updateBoardUI();
-      autoHint(false);
+      if (aiAuto) autoHint(false);
       if (!checkAnyMovePossible()) showGameOver();
-      playSfx(620 + (score % 180), 'sine', 0.1);
+      playSfx(620 + (gain % 180), 'sine', 0.1);
     }
 
     function bestMoveSuggestion() {
@@ -614,7 +774,6 @@
         const cell = document.querySelector(`.cell[data-row="${move.r+dr}"][data-col="${move.c+dc}"]`);
         cell?.classList.add(kind === 'ok' ? 'hint-ok' : 'hint');
       });
-      const cellsFree = getFreeCells();
       hintStatusEl.textContent = `IA: pieza ${move.idx + 1} en (${move.r + 1},${move.c + 1}) · clears:${move.firstClears} · futuro:${move.followMoves}`;
       if (hintPulse) clearTimeout(hintPulse);
       hintPulse = setTimeout(clearHighlights, 1700);
@@ -623,7 +782,7 @@
     function autoHint(isSpawn) {
       const free = getFreeCells();
       const playableMoves = pieces.filter(Boolean).reduce((acc, shape) => acc + allPlacements(shape).length, 0);
-      const shouldHelp = free <= 20 || playableMoves <= 6 || (isSpawn && free <= 26);
+      const shouldHelp = free <= 22 || playableMoves <= 7 || (isSpawn && free <= 28);
       hintStatusEl.textContent = shouldHelp
         ? 'IA: tablero crítico detectado, activando ayuda predictiva.'
         : `IA: estado estable · ${playableMoves} jugadas posibles.`;
@@ -638,6 +797,12 @@
       scoreEl.textContent = score;
       highEl.textContent = highScore;
       freeEl.textContent = getFreeCells();
+      levelEl.textContent = level;
+      comboEl.textContent = `x${comboStreak}`;
+      movesEl.textContent = moves;
+      aiStateEl.textContent = aiAuto ? 'ON' : 'OFF';
+      const progress = ((score % 900) / 900) * 100;
+      levelProgressEl.style.width = `${Math.max(4, progress)}%`;
     }
 
     function showGameOver() {
@@ -646,8 +811,8 @@
       document.getElementById('final-turns').textContent = turn;
       document.getElementById('final-clears').textContent = totalClears;
       const subtitle = score >= highScore
-        ? 'Nuevo récord desbloqueado. ¡Muy buena partida!'
-        : `Te faltaron ${highScore - score} puntos para el récord.`;
+        ? `Nuevo récord desbloqueado con combo máximo x${maxCombo}.`
+        : `Te faltaron ${highScore - score} puntos para el récord. Usa Reintentar para revancha.`;
       document.getElementById('game-over-subtitle').textContent = subtitle;
       gameOverEl.style.display = 'flex';
       clearHighlights();
@@ -657,17 +822,29 @@
     function resetGame() {
       for (let r=0;r<9;r++) for (let c=0;c<9;c++) board[r][c] = 0;
       score = 0;
+      level = 1;
+      moves = 0;
+      comboStreak = 0;
+      maxCombo = 0;
+      totalClears = 0;
       pieces = [null, null, null];
       pieceMeta = [{assist:false},{assist:false},{assist:false}];
       turn = 0;
-      totalClears = 0;
       assistCooldown = 0;
       gameEnded = false;
+      history = [];
       clearHighlights();
       gameOverEl.style.display = 'none';
-      hintStatusEl.textContent = 'IA: analizando tablero…';
+      hintStatusEl.textContent = 'IA: nueva partida iniciada. Analizando tablero…';
       spawnPieces();
       updateBoardUI();
+      playSfx(500, 'triangle', 0.08);
+    }
+
+    function toggleAiAuto() {
+      aiAuto = !aiAuto;
+      updateBoardUI();
+      hintStatusEl.textContent = aiAuto ? 'IA Auto activada.' : 'IA Auto desactivada.';
     }
 
     window.onpointermove = updateDragPos;
@@ -680,7 +857,7 @@
       } else {
         document.getElementById(`slot-${dragging.idx}`).style.opacity = 1;
         playSfx(180, 'sawtooth', 0.1);
-        autoHint(false);
+        if (aiAuto) autoHint(false);
       }
       clearHighlights();
       dragEl?.remove();
@@ -690,7 +867,17 @@
     };
 
     document.getElementById('hint-btn').addEventListener('click', () => applyHint('hint'));
+    document.getElementById('undo-btn').addEventListener('click', undoMove);
+    document.getElementById('reset-btn').addEventListener('click', resetGame);
     document.getElementById('retry-btn').addEventListener('click', resetGame);
+    document.getElementById('close-over-btn').addEventListener('click', () => gameOverEl.style.display = 'none');
+
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'h' || e.key === 'H') applyHint('hint');
+      if (e.key === 'u' || e.key === 'U') undoMove();
+      if (e.key === 'r' || e.key === 'R') resetGame();
+      if (e.key === 'a' || e.key === 'A') toggleAiAuto();
+    });
 
     initBoard();
     spawnPieces();
