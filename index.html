@@ -1,701 +1,1670 @@
+
 <!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>Blockudoku Omniverse Edition</title>
-  <style>
-    :root {
-      --bg: #020617;
-      --card: #0f172a;
-      --ink: #e2e8f0;
-      --primary: #22d3ee;
-      --secondary: #a78bfa;
-      --accent: #f43f5e;
-      --line: #1f2937;
-      --sudoku: #3b82f6;
-      --hint: #f59e0b;
-      --ok: #34d399;
-    }
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CTRL PRO - Panel Operativo</title>
 
-    * { box-sizing: border-box; }
+  <style>
+    * {
+      box-sizing: border-box;
+      font-family: Arial, sans-serif;
+    }
 
     body {
       margin: 0;
-      min-height: 100vh;
-      font-family: 'Segoe UI', Inter, Roboto, sans-serif;
-      background: radial-gradient(circle at 20% -10%, #0b2440 0%, var(--bg) 50%);
-      color: var(--ink);
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      touch-action: none;
-      user-select: none;
-      overflow: hidden;
+      background: #111;
+      color: #fff;
     }
 
-    .header {
-      width: min(98vw, 520px);
-      margin-top: 10px;
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 10px;
-      align-items: stretch;
-    }
-
-    .score-display {
-      background: linear-gradient(145deg, rgba(17, 24, 39, 0.9), rgba(2, 6, 23, 0.95));
-      border: 1px solid var(--line);
-      border-radius: 14px;
-      padding: 9px 12px;
-      text-align: center;
-      box-shadow: 0 0 18px rgba(34, 211, 238, 0.1);
-    }
-
-    .val { display: block; font-size: 24px; font-weight: 900; color: var(--primary); }
-    .lbl { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; opacity: 0.75; }
-
-    .status {
-      width: min(98vw, 520px);
-      margin: 8px 0 10px;
-      display: flex;
-      gap: 10px;
-      align-items: center;
-      justify-content: space-between;
-    }
-
-    #hint-status {
-      font-size: 13px;
-      color: #cbd5e1;
-      min-height: 1em;
-    }
-
-    .btn {
-      border: 1px solid #334155;
-      color: white;
-      background: linear-gradient(145deg, #0f172a, #1e293b);
-      border-radius: 999px;
-      padding: 8px 14px;
-      font-weight: 700;
-      cursor: pointer;
-    }
-
-    .btn:hover { border-color: var(--primary); }
-
-    #board {
-      display: grid;
-      grid-template-columns: repeat(9, 40px);
-      grid-template-rows: repeat(9, 40px);
-      gap: 2px;
-      background: var(--line);
-      padding: 4px;
-      border-radius: 10px;
-      border: 2px solid #334155;
-      position: relative;
-    }
-
-    .cell {
-      width: 40px;
-      height: 40px;
-      background: #020617;
-      border-radius: 4px;
-      transition: transform .12s ease, background-color .18s ease, box-shadow .18s ease;
-    }
-
-    .cell[data-col="2"], .cell[data-col="5"] { border-right: 3px solid var(--sudoku); }
-    .cell[data-row="2"], .cell[data-row="5"] { border-bottom: 3px solid var(--sudoku); }
-
-    .cell.filled {
-      background: linear-gradient(135deg, var(--primary), var(--secondary));
-      box-shadow: inset 0 0 10px rgba(255,255,255,0.35);
-    }
-    .cell.ghost { background: rgba(34, 211, 238, 0.22); }
-    .cell.hint { background: rgba(245, 158, 11, 0.32); box-shadow: 0 0 12px rgba(245, 158, 11, 0.42); }
-    .cell.hint-ok { background: rgba(52, 211, 153, 0.26); box-shadow: 0 0 14px rgba(52, 211, 153, 0.4); }
-
-    .tray {
-      margin-top: 16px;
-      width: min(98vw, 520px);
-      display: flex;
-      justify-content: center;
-      gap: 10px;
-      align-items: center;
-      min-height: 125px;
-    }
-
-    .slot {
-      width: 120px;
-      height: 120px;
-      border-radius: 16px;
-      border: 1px dashed rgba(148, 163, 184, 0.45);
-      background: rgba(15, 23, 42, 0.6);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      transition: border-color .15s ease, transform .15s ease;
-    }
-
-    .slot.assist { border-color: var(--ok); box-shadow: 0 0 18px rgba(52, 211, 153, 0.18); }
-
-    .mini-grid { display: grid; gap: 2px; }
-    .mini-block {
-      width: 16px;
-      height: 16px;
-      border-radius: 3px;
-      background: var(--primary);
-      border: 1px solid rgba(255,255,255,0.18);
-    }
-
-    .floating-piece {
-      position: fixed;
-      pointer-events: none;
-      display: grid;
-      z-index: 9999;
-      gap: 2px;
-      filter: drop-shadow(0 0 18px rgba(34, 211, 238, 0.9));
-    }
-
-    .p-block {
-      width: 40px;
-      height: 40px;
-      border-radius: 5px;
-      background: linear-gradient(135deg, #67e8f9, #a78bfa);
-      border: 1px solid rgba(255,255,255,0.25);
-    }
-
-    #game-over {
-      position: fixed;
-      inset: 0;
-      display: none;
-      align-items: center;
-      justify-content: center;
+    .container {
+      max-width: 1150px;
+      margin: auto;
       padding: 20px;
-      background: rgba(0, 0, 0, 0.84);
-      z-index: 10000;
     }
 
-    .game-over-card {
-      width: min(92vw, 420px);
-      border-radius: 20px;
-      border: 1px solid rgba(148, 163, 184, 0.35);
-      background: linear-gradient(160deg, rgba(15, 23, 42, 0.98), rgba(2, 6, 23, 0.98));
-      box-shadow: 0 25px 45px rgba(0, 0, 0, 0.45);
-      padding: 24px;
+    .card {
+      background: #1f1f1f;
+      padding: 20px;
+      margin-bottom: 18px;
+      border-radius: 14px;
+      box-shadow: 0 4px 14px rgba(0,0,0,.25);
+    }
+
+    h1, h2, h3 {
+      margin-top: 0;
+    }
+
+    input, select, textarea, button {
+      width: 100%;
+      padding: 12px;
+      margin: 6px 0 12px;
+      border-radius: 8px;
+      border: none;
+      font-size: 15px;
+    }
+
+    input, select, textarea {
+      background: #fff;
+      color: #111;
+    }
+
+    textarea {
+      min-height: 80px;
+      resize: vertical;
+    }
+
+    button {
+      cursor: pointer;
+      font-weight: bold;
+      background: #f1f1f1;
+      color: #111;
+    }
+
+    .danger {
+      background: #d93025;
+      color: white;
+    }
+
+    .success {
+      background: #16a765;
+      color: white;
+    }
+
+    .warning {
+      background: #fbbc04;
+      color: #111;
+    }
+
+    .secondary {
+      background: #666;
+      color: white;
+    }
+
+    .primary {
+      background: #4b5cff;
+      color: white;
+    }
+
+    .row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .row button {
+      flex: 1;
+      min-width: 160px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 12px;
+    }
+
+    .hidden {
+      display: none;
+    }
+
+    .badge {
+      display: inline-block;
+      background: #333;
+      padding: 8px 12px;
+      border-radius: 999px;
+      margin: 4px 5px 4px 0;
+    }
+
+    .telef-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      margin: 4px 6px 4px 0;
+      vertical-align: top;
+    }
+
+    .telef-item .badge {
+      margin: 0;
+      transition: background .2s, opacity .2s;
+    }
+
+    .telef-item.caido .badge {
+      background: #4a1a1a;
+      color: #f88;
+      text-decoration: line-through;
+      opacity: .75;
+    }
+
+    .telef-item .btn-icon {
+      background: none;
+      border: none;
+      padding: 2px 4px;
+      margin: 0;
+      width: auto;
+      font-size: 13px;
+      cursor: pointer;
+      opacity: .5;
+      border-radius: 6px;
+      transition: opacity .15s;
+    }
+
+    .telef-item .btn-icon:hover { opacity: 1; background: #333; }
+
+    .telef-nota {
+      display: block;
+      font-size: 11px;
+      color: #f0b429;
+      margin-top: 2px;
+      max-width: 180px;
+      word-break: break-word;
+    }
+
+    .telef-nota-input {
+      font-size: 12px;
+      padding: 4px 8px;
+      margin: 2px 0 0;
+      width: 160px;
+      border-radius: 6px;
+    }
+
+    .telef-log-panel {
+      display: block;
+      background: #2a2a2a;
+      border-radius: 8px;
+      padding: 8px 10px;
+      margin-top: 4px;
+      width: 300px;
+      font-size: 12px;
+    }
+
+    .telef-log-entry {
+      border-bottom: 1px solid #3a3a3a;
+      padding: 4px 0;
+      line-height: 1.5;
+    }
+
+    .telef-log-entry:last-child { border-bottom: none; }
+
+    .novedad-nota-input {
+      width: 100%;
+      font-size: 13px;
+      padding: 6px 10px;
+      margin: 6px 0 0;
+      border-radius: 8px;
+      background: #fff;
+      color: #111;
+      border: none;
+    }
+
+    .msg {
+      color: #ddd;
+      font-size: 14px;
+      margin-top: 6px;
+      white-space: pre-wrap;
+    }
+
+    .alert {
+      background: #392222;
+      border-left: 5px solid #d93025;
+      padding: 14px;
+      border-radius: 10px;
+      margin: 10px 0;
+    }
+
+    .alert.ok {
+      background: #173321;
+      border-left-color: #16a765;
+    }
+
+    .novedad {
+      background: #2c2c2c;
+      border-left: 5px solid #fbbc04;
+      padding: 14px;
+      border-radius: 10px;
+      margin-bottom: 12px;
+    }
+
+    @keyframes slideIn {
+      from { transform: translateX(100%); opacity: 0; }
+      to { transform: translateX(0); opacity: 1; }
+    }
+
+    .small {
+      color: #bbb;
+      font-size: 13px;
+    }
+
+    /* FLOATING WIDGET */
+    #floatWidget {
+      position: fixed;
+      bottom: 30px;
+      right: 30px;
+      z-index: 9999;
+      user-select: none;
+    }
+
+    #floatWidget .fw-gear {
+      width: 52px;
+      height: 52px;
+      border-radius: 50%;
+      background: #4b5cff;
+      border: none;
+      font-size: 22px;
+      cursor: grab;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 16px rgba(0,0,0,.5);
+      transition: background .2s;
+    }
+
+    #floatWidget .fw-gear:active {
+      cursor: grabbing;
+    }
+
+    #floatWidget .fw-gear:hover {
+      background: #3a4bdd;
+    }
+
+    #floatWidget .fw-actions {
       display: flex;
       flex-direction: column;
-      gap: 16px;
-      text-align: center;
-    }
-
-    .game-over-title {
-      font-size: clamp(34px, 8vw, 48px);
-      color: var(--accent);
-      margin: 0;
-      line-height: 1;
-      letter-spacing: 1px;
-    }
-
-    .game-over-subtitle {
-      margin: 0;
-      color: #cbd5e1;
-      font-size: 14px;
-      opacity: 0.95;
-    }
-
-    .game-over-stats {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
+      align-items: center;
       gap: 10px;
-      text-align: center;
+      margin-bottom: 10px;
     }
 
-    .game-stat {
-      border-radius: 12px;
-      border: 1px solid rgba(100, 116, 139, 0.45);
-      background: rgba(15, 23, 42, 0.82);
-      padding: 10px 8px;
+    #floatWidget .fw-actions.hidden {
+      display: none;
     }
 
-    .game-stat strong {
-      display: block;
-      color: var(--primary);
-      font-size: 22px;
-      line-height: 1.1;
-    }
-
-    .game-stat span {
-      font-size: 10px;
-      letter-spacing: 1px;
-      text-transform: uppercase;
-      opacity: 0.76;
-    }
-
-    .game-over-actions {
+    .fw-btn {
+      width: 46px;
+      height: 46px;
+      border-radius: 50%;
+      border: none;
+      font-size: 20px;
+      cursor: pointer;
       display: flex;
-      gap: 10px;
+      align-items: center;
       justify-content: center;
-      flex-wrap: wrap;
+      box-shadow: 0 3px 10px rgba(0,0,0,.4);
+      position: relative;
+      transition: transform .15s, background .2s;
     }
 
-    .shake { animation: shake 0.35s cubic-bezier(.36,.07,.19,.97); }
-    @keyframes shake { 20%,80% {transform:translateX(2px);} 30%,50%,70%{transform:translateX(-3px);} }
+    .fw-btn:hover {
+      transform: scale(1.1);
+    }
+
+    .fw-btn .fw-tooltip {
+      position: absolute;
+      right: 58px;
+      background: #222;
+      color: #fff;
+      padding: 5px 10px;
+      border-radius: 6px;
+      font-size: 12px;
+      white-space: nowrap;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity .15s;
+    }
+
+    .fw-btn:hover .fw-tooltip {
+      opacity: 1;
+    }
+
+    .fw-btn-bano     { background: #1a73e8; }
+    .fw-btn-fumar    { background: #5f6368; }
+    .fw-btn-limpieza { background: #ad7c00; }
   </style>
 </head>
+
 <body>
-  <div class="header">
-    <div class="score-display"><span class="lbl">Récord</span><span class="val" id="high-score">0</span></div>
-    <div class="score-display"><span class="lbl">Puntos</span><span class="val" id="score">0</span></div>
-    <div class="score-display"><span class="lbl">Espacios</span><span class="val" id="free-cells">81</span></div>
-  </div>
+<div class="container">
 
-  <div class="status">
-    <span id="hint-status">IA: analizando tablero…</span>
-    <button class="btn" id="hint-btn">Sugerir jugada</button>
-  </div>
+  <!-- LOGIN -->
+  <div class="card" id="loginCard">
+    <h1>CTRL PRO</h1>
+    <h3>Ingreso al panel operativo</h3>
 
-  <div id="board"></div>
+    <label>Operador</label>
+    <input id="loginNombre" placeholder="Ej: Nombre" />
 
-  <div class="tray">
-    <div class="slot" id="slot-0"></div>
-    <div class="slot" id="slot-1"></div>
-    <div class="slot" id="slot-2"></div>
-  </div>
+    <label>PIN</label>
+    <input id="loginPin" type="password" placeholder="PIN" />
 
-  <div id="game-over">
-    <div class="game-over-card">
-      <h1 class="game-over-title">GAME OVER</h1>
-      <p class="game-over-subtitle" id="game-over-subtitle">La IA ya está analizando una revancha.</p>
-      <div class="game-over-stats">
-        <div class="game-stat"><strong id="final-score">0</strong><span>Puntos</span></div>
-        <div class="game-stat"><strong id="final-turns">0</strong><span>Turnos</span></div>
-        <div class="game-stat"><strong id="final-clears">0</strong><span>Bloques limpiados</span></div>
-      </div>
-      <div class="game-over-actions">
-        <button class="btn" id="retry-btn">Reintentar</button>
-      </div>
+    <div id="pcSelectorWrap" class="hidden">
+      <label id="pcSelectorLabel">PC en la que te sentás</label>
+      <select id="pcSelector"></select>
     </div>
+
+    <button class="primary" onclick="login()">Ingresar</button>
+    <div id="loginMsg" class="msg"></div>
   </div>
 
-  <script>
-    const SHAPES = {
-      dot:[[0,0]], h2:[[0,0],[0,1]], v2:[[0,0],[1,0]], h3:[[0,0],[0,1],[0,2]], v3:[[0,0],[1,0],[2,0]],
-      h4:[[0,0],[0,1],[0,2],[0,3]], v4:[[0,0],[1,0],[2,0],[3,0]], h5:[[0,0],[0,1],[0,2],[0,3],[0,4]], v5:[[0,0],[1,0],[2,0],[3,0],[4,0]],
-      sq2:[[0,0],[0,1],[1,0],[1,1]], sq3:[[0,0],[0,1],[0,2],[1,0],[1,1],[1,2],[2,0],[2,1],[2,2]],
-      t_up:[[0,1],[1,0],[1,1],[1,2]], t_down:[[0,0],[0,1],[0,2],[1,1]], t_left:[[0,1],[1,0],[1,1],[2,1]], t_right:[[0,0],[1,0],[1,1],[2,0]],
-      l1:[[0,0],[1,0],[2,0],[2,1]], l2:[[0,1],[1,1],[2,1],[2,0]], l3:[[0,0],[0,1],[1,0],[2,0]], l4:[[0,0],[0,1],[1,1],[2,1]],
-      s1:[[0,1],[0,2],[1,0],[1,1]], z1:[[0,0],[0,1],[1,1],[1,2]],
-      plus:[[0,1],[1,0],[1,1],[1,2],[2,1]], u_shape:[[0,0],[0,2],[1,0],[1,1],[1,2]],
-      c_shape:[[0,0],[0,1],[1,0],[2,0],[2,1]], w_shape:[[0,0],[1,0],[1,1],[2,1],[2,2]],
-      stairs:[[0,0],[1,0],[1,1],[2,1],[2,2]], big_l:[[0,0],[1,0],[2,0],[3,0],[3,1]],
-      hook:[[0,0],[0,1],[1,0],[2,0],[3,0]], long_z:[[0,0],[0,1],[1,1],[2,1],[2,2]],
-      corner3:[[0,0],[1,0],[1,1]], zig3:[[0,0],[0,1],[1,1]], tri_line:[[0,0],[1,0],[1,1]],
-      frame:[[0,0],[0,1],[0,2],[1,0],[1,2],[2,0],[2,1],[2,2]], ring4:[[0,0],[0,1],[1,0],[1,2],[2,1],[2,2]],
-      snake6:[[0,0],[0,1],[1,1],[1,2],[2,2],[2,3]], bridge6:[[0,0],[1,0],[1,1],[1,2],[2,2],[3,2]]
-    };
+  <!-- APP -->
+  <div id="app" class="hidden">
 
-    const CATEGORIES = {
-      RESCUE: ['dot','h2','v2','h3','v3','corner3','zig3','tri_line','sq2'],
-      NORMAL: ['h4','v4','t_up','t_down','t_left','t_right','l1','l2','l3','l4','s1','z1','u_shape','plus'],
-      HARD: ['h5','v5','sq3','c_shape','stairs','big_l','hook','long_z','w_shape','frame','ring4','snake6','bridge6']
-    };
+    <!-- TURNO ACTIVO -->
+    <div class="card">
+      <h2>Turno activo</h2>
+      <div id="operadorInfo"></div>
+      <button class="secondary" onclick="cerrarSesion()">Cerrar sesión</button>
+    </div>
 
-    const board = Array.from({length:9},()=>Array(9).fill(0));
-    let score = 0;
-    let highScore = Number(localStorage.getItem('blockudoku_high') || 0);
-    let pieces = [null, null, null];
-    let pieceMeta = [{assist:false},{assist:false},{assist:false}];
-    let dragging = null;
-    let dragEl = null;
-    let turn = 0;
-    let totalClears = 0;
-    let assistCooldown = 0;
-    let hintPulse = null;
-    let gameEnded = false;
+    <!-- CAMBIO DE PIN -->
+    <div class="card hidden" id="cambiarPinCard">
+      <h3>Cambiar PIN</h3>
 
-    const boardEl = document.getElementById('board');
-    const scoreEl = document.getElementById('score');
-    const highEl = document.getElementById('high-score');
-    const freeEl = document.getElementById('free-cells');
-    const hintStatusEl = document.getElementById('hint-status');
-    const gameOverEl = document.getElementById('game-over');
-    highEl.textContent = highScore;
+      <label>PIN actual</label>
+      <input id="pinActual" type="password" placeholder="PIN actual" />
 
-    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    function playSfx(freq, type='sine', dur=0.13, vol=0.08) {
-      const o = audioCtx.createOscillator();
-      const g = audioCtx.createGain();
-      o.type = type; o.frequency.value = freq;
-      g.gain.value = vol;
-      g.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + dur);
-      o.connect(g); g.connect(audioCtx.destination); o.start(); o.stop(audioCtx.currentTime + dur);
+      <label>PIN nuevo</label>
+      <input id="pinNuevo" type="password" placeholder="PIN nuevo" />
+
+      <label>Confirmar PIN nuevo</label>
+      <input id="pinNuevoConfirm" type="password" placeholder="Repetir PIN nuevo" />
+
+      <div class="row">
+        <button class="primary" onclick="cambiarPin()">Guardar</button>
+        <button class="secondary" onclick="ocultarCambioPin()">Cancelar</button>
+      </div>
+
+      <div id="cambiarPinMsg" class="msg"></div>
+    </div>
+
+    <!-- AVISO LIMPIEZA -->
+    <div class="card hidden" id="limpiezaAvisoCard">
+      <h3>🧹 Cronograma de limpieza</h3>
+      <div id="limpiezaAvisoBox"></div>
+    </div>
+
+    <!-- ACCIONES -->
+    <div class="card">
+      <h3>Acciones rápidas</h3>
+
+      <div class="row">
+        <button id="banoBtn"     class="warning" onclick="banoToggle()">🚽 Voy al baño</button>
+        <button id="fumarBtn"    class="warning" onclick="fumarToggle()">🚬 Voy a fumar</button>
+        <button id="limpiezaBtn" class="warning" onclick="limpiezaToggle()">🧹 Iniciar limpieza</button>
+      </div>
+
+      <div id="accionMsg" class="msg"></div>
+    </div>
+
+    <!-- HISTORIAL DE PAUSAS -->
+    <div class="card">
+      <h3>Mi historial de hoy</h3>
+      <div id="historialBox"><span class="small">Sin registros todavía.</span></div>
+    </div>
+
+    <!-- TELEFONOS DE LA PC -->
+    <div class="card hidden" id="telefonosCard">
+      <h3>📞 Teléfonos de tu PC</h3>
+      <div id="telefonosBox"></div>
+    </div>
+
+    <!-- TAREAS DE SUPERVISOR -->
+    <div class="card hidden" id="tareasCard">
+      <h3>⚡ Tareas asignadas</h3>
+      <div id="tareasBox"></div>
+      <div id="ultimaTareaBox"></div>
+    </div>
+
+    <!-- NOTAS DEL TURNO (POR PC) -->
+    <div class="card" id="notasTurnoCard">
+      <h3>📝 Notas del turno</h3>
+      <div id="notasAnterioresBox" style="margin-bottom:14px"></div>
+      <label>Tu nota para el siguiente turno</label>
+      <textarea id="miNotaTurno" placeholder="Algo que el siguiente operador debería saber sobre esta PC..."></textarea>
+      <button class="primary" onclick="guardarMiNotaTurno()">Guardar nota</button>
+      <div id="notaTurnoMsg" class="msg"></div>
+    </div>
+
+    <!-- NOVEDADES -->
+    <div class="card" id="novedadesCard">
+      <h3>⚠️ Novedades pendientes <span id="novedadesBadge" class="badge" style="display:none;background:#d93025;color:#fff;font-size:12px"></span></h3>
+      <div id="novedadesBox">Cargando novedades...</div>
+    </div>
+
+    <!-- MIS NOVEDADES REPORTADAS -->
+    <div class="card" id="misNovedadesCard" style="display:none">
+      <h3 style="cursor:pointer;user-select:none" onclick="toggleMisNovedades()">
+        📋 Mis novedades reportadas <span id="misNovedadesBadge" class="badge" style="background:#1a73e8;color:#fff;font-size:12px"></span>
+        <span id="misNovedadesArrow" style="float:right">▸</span>
+      </h3>
+      <div id="misNovedadesBox" style="display:none"></div>
+    </div>
+
+    <!-- RECEPCION -->
+    <div class="card">
+      <h3>Recepción de turno</h3>
+
+      <label>Operador que entrega</label>
+      <input id="entrega" placeholder="Nombre del operador que entrega" />
+
+      <div class="grid">
+        <div>
+          <label>Puesto en orden</label>
+          <select id="puestoOrden">
+            <option>Sí</option>
+            <option>No</option>
+          </select>
+        </div>
+
+        <div>
+          <label>Estados WhatsApp OK</label>
+          <select id="whatsappOk">
+            <option>Sí</option>
+            <option>No</option>
+          </select>
+        </div>
+
+        <div>
+          <label>Caja correcta</label>
+          <select id="cajaOk" onchange="toggleDiferenciaCaja()">
+            <option>Sí</option>
+            <option>No</option>
+          </select>
+        </div>
+
+        <div>
+          <label>Revinculación OK</label>
+          <select id="revinculacionOk">
+            <option>Sí</option>
+            <option>No</option>
+          </select>
+        </div>
+
+        <div>
+          <label>Limpieza cumplida</label>
+          <select id="limpiezaCumplida">
+            <option>Sí</option>
+            <option>No</option>
+            <option>No corresponde</option>
+          </select>
+        </div>
+      </div>
+
+      <div id="diferenciaCajaWrap" style="display:none">
+        <label>Diferencia de caja / detalle</label>
+        <textarea id="diferenciaCaja" placeholder="Detalle de la diferencia"></textarea>
+      </div>
+
+      <label>Observaciones</label>
+      <textarea id="obsRecepcion" placeholder="Observaciones del turno recibido"></textarea>
+
+      <button class="primary" onclick="guardarRecepcion()">Guardar recepción</button>
+      <div id="recepcionMsg" class="msg"></div>
+    </div>
+
+    <!-- REPORTAR NOVEDAD -->
+    <div class="card">
+      <h3>Reportar novedad</h3>
+
+      <label>Tipo</label>
+      <select id="tipoNovedad">
+        <option>Diferencia caja</option>
+        <option>Reclamo</option>
+        <option>Limpieza</option>
+        <option>Premio pendiente</option>
+        <option>Otro</option>
+      </select>
+
+      <label>Prioridad</label>
+      <select id="prioridadNovedad">
+        <option>Media</option>
+        <option>Alta</option>
+        <option>Baja</option>
+      </select>
+
+      <label>Detalle</label>
+      <textarea id="detalleNovedad" placeholder="Detalle de la novedad"></textarea>
+
+      <label>Observaciones</label>
+      <textarea id="obsNovedad" placeholder="Observaciones adicionales"></textarea>
+
+      <button class="primary" onclick="reportarNovedad()">Reportar novedad</button>
+      <div id="novedadMsg" class="msg"></div>
+    </div>
+
+  </div>
+</div>
+
+<!-- FLOATING WIDGET -->
+<div id="floatWidget" class="hidden">
+  <div class="fw-actions hidden" id="fwActions">
+    <button class="fw-btn fw-btn-bano" id="fwBanoBtn" onclick="banoToggle()">
+      🚽
+      <span class="fw-tooltip" id="fwBanoTip">Baño</span>
+    </button>
+    <button class="fw-btn fw-btn-fumar" id="fwFumarBtn" onclick="fumarToggle()">
+      🚬
+      <span class="fw-tooltip" id="fwFumarTip">Fumar</span>
+    </button>
+    <button class="fw-btn fw-btn-limpieza" id="fwLimpiezaBtn" onclick="limpiezaToggle()">
+      🧹
+      <span class="fw-tooltip" id="fwLimpiezaTip">Limpieza</span>
+    </button>
+  </div>
+  <button class="fw-gear" id="fwGear" onclick="fwToggle()">⚙️</button>
+</div>
+
+<script>
+  const API_URL = "https://script.google.com/macros/s/AKfycbyRaRvPoOZRStLWkfI-RECpYZ_6D72QTaqf_iAsZOdfmYWrwW-5fXlYDzJ5AkpUfjMr/exec";
+
+  let operador = JSON.parse(localStorage.getItem("operadorActivo") || "null");
+
+  window.onload = function () {
+    if (operador) {
+      mostrarApp();
     }
+  };
 
-    function initBoard() {
-      for (let r=0;r<9;r++) {
-        for (let c=0;c<9;c++) {
-          const cell = document.createElement('div');
-          cell.className = 'cell';
-          cell.dataset.row = r;
-          cell.dataset.col = c;
-          boardEl.appendChild(cell);
-        }
-      }
+  async function api(params) {
+    const url = API_URL + "?" + new URLSearchParams({ ...params, _t: Date.now() }).toString();
+
+    const res = await fetch(url, { cache: "no-store" });
+    const text = await res.text();
+
+    try {
+      return JSON.parse(text);
+    } catch (e) {
+      console.error("Respuesta no JSON:", text);
+      return { ok: false, error: "La API no devolvió JSON válido." };
     }
+  }
 
-    function getFreeCells() { return board.flat().filter(v => v===0).length; }
-
-    function randomFrom(list) { return list[Math.floor(Math.random()*list.length)]; }
-
-    function allPlacements(shape) {
-      const result = [];
-      for (let r=0;r<9;r++) for (let c=0;c<9;c++) if (canPlace(shape, r, c)) result.push({r,c});
-      return result;
-    }
-
-    function canPlace(shape, r, c) {
-      return shape.every(([dr,dc]) => {
-        const nr = r+dr, nc = c+dc;
-        return nr>=0 && nr<9 && nc>=0 && nc<9 && board[nr][nc]===0;
+  // POST para payloads grandes (imágenes base64). Usa text/plain para evitar preflight CORS.
+  async function apiPost(params) {
+    try {
+      const res = await fetch(API_URL + "?_t=" + Date.now(), {
+        method: "POST",
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        body: JSON.stringify(params),
+        cache: "no-store"
       });
+      const text = await res.text();
+      return JSON.parse(text);
+    } catch (e) {
+      return { ok: false, error: e.message || "Error de red." };
     }
+  }
 
-    function collectClears(simBoard) {
-      const map = new Map();
-      const push = (r,c)=>map.set(`${r},${c}`,{r,c});
-      for (let i=0;i<9;i++) {
-        if (simBoard[i].every(v=>v===1)) for (let c=0;c<9;c++) push(i,c);
-        const col = Array.from({length:9},(_,r)=>simBoard[r][i]);
-        if (col.every(v=>v===1)) for (let r=0;r<9;r++) push(r,i);
-      }
-      for (let sr=0;sr<9;sr+=3) for (let sc=0;sc<9;sc+=3) {
-        const sec = [];
-        for (let r=sr;r<sr+3;r++) for (let c=sc;c<sc+3;c++) sec.push({r,c});
-        if (sec.every(p=>simBoard[p.r][p.c]===1)) sec.forEach(p=>push(p.r,p.c));
-      }
-      return [...map.values()];
-    }
-
-    function simulatePlacement(baseBoard, shape, r, c) {
-      const sim = baseBoard.map(row => [...row]);
-      shape.forEach(([dr,dc]) => sim[r+dr][c+dc] = 1);
-      const clears = collectClears(sim);
-      clears.forEach(({r:rr, c:cc}) => sim[rr][cc] = 0);
-      return { sim, clears: clears.length };
-    }
-
-    function boardMetrics(simBoard) {
-      const free = simBoard.flat().filter(v => v===0).length;
-      const crowdedRows = simBoard.reduce((acc, row) => acc + (row.filter(v=>v===1).length >= 7 ? 1 : 0), 0);
-      const crowdedCols = Array.from({length:9}, (_,c) => simBoard.map(r => r[c]).filter(v=>v===1).length)
-        .reduce((acc, amount) => acc + (amount >= 7 ? 1 : 0), 0);
-      return { free, pressure: crowdedRows + crowdedCols };
-    }
-
-    function evaluatePlacement(shape, r, c, idx) {
-      const first = simulatePlacement(board, shape, r, c);
-      const touchedRows = new Set(shape.map(([dr])=>r+dr)).size;
-      const touchedCols = new Set(shape.map(([,dc])=>c+dc)).size;
-      const firstMetrics = boardMetrics(first.sim);
-
-      let followBest = -Infinity;
-      let followMoves = 0;
-      for (let j=0;j<3;j++) {
-        if (j === idx || !pieces[j]) continue;
-        const candidate = pieces[j];
-        for (let rr=0;rr<9;rr++) {
-          for (let cc=0;cc<9;cc++) {
-            const can = candidate.every(([dr,dc]) => {
-              const nr = rr + dr, nc = cc + dc;
-              return nr>=0 && nr<9 && nc>=0 && nc<9 && first.sim[nr][nc]===0;
-            });
-            if (!can) continue;
-            followMoves++;
-            const second = simulatePlacement(first.sim, candidate, rr, cc);
-            const secondMetrics = boardMetrics(second.sim);
-            const secondScore = second.clears * 22 + secondMetrics.free * 0.26 - secondMetrics.pressure * 4.8;
-            if (secondScore > followBest) followBest = secondScore;
+  // Comprimir imagen client-side antes de subir (max 1600px, JPEG q=0.7)
+  function _comprimirImagen(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          const MAX = 1600;
+          let w = img.width, h = img.height;
+          if (w > MAX || h > MAX) {
+            const ratio = Math.min(MAX / w, MAX / h);
+            w = Math.round(w * ratio);
+            h = Math.round(h * ratio);
           }
-        }
-      }
-      if (!Number.isFinite(followBest)) followBest = -26;
-
-      const rescueBonus = pieceMeta[idx]?.assist ? 8 : 0;
-      return {
-        value:
-          shape.length * 8.5 +
-          first.clears * 24 +
-          touchedRows * 1.2 +
-          touchedCols * 1.2 +
-          firstMetrics.free * 0.35 -
-          firstMetrics.pressure * 5.5 +
-          followMoves * 0.85 +
-          followBest * 0.45 +
-          rescueBonus,
-        firstClears: first.clears,
-        followMoves
+          const canvas = document.createElement("canvas");
+          canvas.width = w; canvas.height = h;
+          canvas.getContext("2d").drawImage(img, 0, 0, w, h);
+          resolve(canvas.toDataURL("image/jpeg", 0.72));
+        };
+        img.onerror = () => reject(new Error("No se pudo cargar la imagen"));
+        img.src = e.target.result;
       };
-    }
+      reader.onerror = () => reject(new Error("No se pudo leer el archivo"));
+      reader.readAsDataURL(file);
+    });
+  }
 
-    function pickSpawnShape(slotIndex) {
-      const free = getFreeCells();
-      const dense = 81 - free;
-      let pool = dense > 52 ? CATEGORIES.RESCUE : dense > 35 ? [...CATEGORIES.RESCUE, ...CATEGORIES.NORMAL] : [...CATEGORIES.NORMAL, ...CATEGORIES.HARD];
-      let assist = false;
-
-      const noMovesNow = pieces.filter(Boolean).every(shape => allPlacements(shape).length === 0);
-      const danger = free <= 18 || noMovesNow;
-
-      if (danger && assistCooldown <= 0) {
-        const fittingRescue = CATEGORIES.RESCUE.filter(name => allPlacements(SHAPES[name]).length > 0);
-        if (fittingRescue.length) {
-          assist = true;
-          assistCooldown = 2;
-          return { shape: SHAPES[randomFrom(fittingRescue)], assist };
-        }
-      }
-
-      for (let tries=0; tries<14; tries++) {
-        const candidate = SHAPES[randomFrom(pool)];
-        if (free > 20 || allPlacements(candidate).length > 0) return { shape: candidate, assist };
-      }
-
-      const guaranteed = [...CATEGORIES.RESCUE, ...CATEGORIES.NORMAL]
-        .map(name => SHAPES[name])
-        .find(shape => allPlacements(shape).length > 0);
-      return { shape: guaranteed || SHAPES.dot, assist: guaranteed ? true : assist };
-    }
-
-    function spawnPieces() {
-      for (let i=0;i<3;i++) {
-        if (pieces[i]) continue;
-        const pick = pickSpawnShape(i);
-        pieces[i] = pick.shape;
-        pieceMeta[i] = { assist: pick.assist };
-      }
-      assistCooldown = Math.max(assistCooldown - 1, 0);
-      renderTray();
-      autoHint(true);
-    }
-
-    function renderTray() {
-      for (let i=0;i<3;i++) {
-        const slot = document.getElementById(`slot-${i}`);
-        slot.classList.toggle('assist', !!pieceMeta[i]?.assist);
-        slot.innerHTML = '';
-        if (!pieces[i]) continue;
-        const shape = pieces[i];
-        const rMax = Math.max(...shape.map(p=>p[0])) + 1;
-        const cMax = Math.max(...shape.map(p=>p[1])) + 1;
-        const g = document.createElement('div');
-        g.className = 'mini-grid';
-        g.style.gridTemplateRows = `repeat(${rMax},16px)`;
-        g.style.gridTemplateColumns = `repeat(${cMax},16px)`;
-        for (const [r,c] of shape) {
-          const b = document.createElement('div');
-          b.className = 'mini-block';
-          b.style.gridRow = r+1;
-          b.style.gridColumn = c+1;
-          if (pieceMeta[i]?.assist) b.style.background = 'var(--ok)';
-          g.appendChild(b);
-        }
-        slot.appendChild(g);
-        slot.onpointerdown = e => startDrag(e, i);
-      }
-    }
-
-    function startDrag(e, idx) {
-      if (!pieces[idx]) return;
-      if (audioCtx.state === 'suspended') audioCtx.resume();
-      dragging = { idx, shape: pieces[idx] };
-      dragEl = document.createElement('div');
-      dragEl.className = 'floating-piece';
-      const shape = dragging.shape;
-      const rMax = Math.max(...shape.map(p=>p[0])) + 1;
-      const cMax = Math.max(...shape.map(p=>p[1])) + 1;
-      dragEl.style.gridTemplateRows = `repeat(${rMax},40px)`;
-      dragEl.style.gridTemplateColumns = `repeat(${cMax},40px)`;
-
-      shape.forEach(([r,c]) => {
-        const b = document.createElement('div');
-        b.className = 'p-block';
-        b.style.gridRow = r+1; b.style.gridColumn = c+1;
-        dragEl.appendChild(b);
-      });
-      document.body.appendChild(dragEl);
-      document.getElementById(`slot-${idx}`).style.opacity = 0.35;
-      updateDragPos(e);
-      playSfx(430, 'triangle', 0.1);
-    }
-
-    function getCellAt(x,y) {
-      const el = document.elementFromPoint(x,y);
-      if (el?.classList.contains('cell')) return { r: Number(el.dataset.row), c: Number(el.dataset.col) };
-      return null;
-    }
-
-    function clearHighlights() {
-      document.querySelectorAll('.cell.ghost,.cell.hint,.cell.hint-ok').forEach(c => c.classList.remove('ghost','hint','hint-ok'));
-    }
-
-    function updateDragPos(e) {
-      if (!dragEl || !dragging) return;
-      const x = e.clientX;
-      const y = e.clientY - 110;
-      dragEl.style.left = `${x - 20}px`;
-      dragEl.style.top = `${y - 20}px`;
-      clearHighlights();
-      const target = getCellAt(x,y);
-      if (target && canPlace(dragging.shape, target.r, target.c)) {
-        dragging.shape.forEach(([dr,dc]) => {
-          const c = document.querySelector(`.cell[data-row="${target.r+dr}"][data-col="${target.c+dc}"]`);
-          c?.classList.add('ghost');
-        });
-      }
-    }
-
-    function checkAnyMovePossible() {
-      return pieces.some(shape => !shape || allPlacements(shape).length > 0);
-    }
-
-    function clearAndScore() {
-      const clearList = collectClears(board);
-      if (!clearList.length) return 0;
-      clearList.forEach(({r,c}) => board[r][c] = 0);
-      score += clearList.length * 15;
-      boardEl.classList.add('shake');
-      setTimeout(()=>boardEl.classList.remove('shake'), 300);
-      playSfx(940, 'square', 0.14); playSfx(1180, 'sine', 0.16);
-      return clearList.length;
-    }
-
-    function placePiece(shape, r, c, idx) {
-      if (gameEnded) return;
-      shape.forEach(([dr,dc]) => board[r+dr][c+dc] = 1);
-      score += shape.length * 10;
-      totalClears += clearAndScore();
-      pieces[idx] = null;
-      pieceMeta[idx] = {assist:false};
-      turn++;
-      if (score > highScore) {
-        highScore = score;
-        localStorage.setItem('blockudoku_high', highScore);
-      }
-      if (pieces.every(p => !p)) spawnPieces();
-      else renderTray();
-      updateBoardUI();
-      autoHint(false);
-      if (!checkAnyMovePossible()) showGameOver();
-      playSfx(620 + (score % 180), 'sine', 0.1);
-    }
-
-    function bestMoveSuggestion() {
-      let best = null;
-      for (let i=0;i<3;i++) {
-        const shape = pieces[i];
-        if (!shape) continue;
-        for (const pos of allPlacements(shape)) {
-          const prediction = evaluatePlacement(shape, pos.r, pos.c, i);
-          if (!best || prediction.value > best.value) {
-            best = { idx:i, shape, ...pos, ...prediction };
+  function _attachPasteHandler(textareaId, previewId) {
+    const ta = document.getElementById(textareaId);
+    if (!ta || ta._pasteAttached) return;
+    ta._pasteAttached = true;
+    ta.addEventListener("paste", async (e) => {
+      const items = (e.clipboardData && e.clipboardData.items) || [];
+      for (let i = 0; i < items.length; i++) {
+        if (items[i].type && items[i].type.indexOf("image/") === 0) {
+          e.preventDefault();
+          const file = items[i].getAsFile();
+          if (!file) return;
+          const preview = document.getElementById(previewId);
+          if (preview) preview.innerHTML = '<span class="small">Comprimiendo imagen...</span>';
+          try {
+            const dataUrl = await _comprimirImagen(file);
+            ta._imagenPendiente = dataUrl;
+            if (preview) preview.innerHTML = `
+              <div style="margin-top:6px">
+                <img src="${dataUrl}" style="max-width:220px;max-height:160px;border-radius:6px;border:1px solid #444;display:block">
+                <button class="warning" style="margin-top:4px;width:auto;padding:4px 10px;font-size:12px" onclick="_cancelarImagen('${textareaId}', '${previewId}')">Quitar imagen</button>
+              </div>
+            `;
+          } catch (err) {
+            if (preview) preview.innerHTML = '<span style="color:#d93025" class="small">Error: ' + err.message + '</span>';
           }
+          break;
         }
       }
-      return best;
+    });
+  }
+
+  function _cancelarImagen(textareaId, previewId) {
+    const ta = document.getElementById(textareaId);
+    if (ta) ta._imagenPendiente = null;
+    const preview = document.getElementById(previewId);
+    if (preview) preview.innerHTML = "";
+  }
+
+  function setMsg(id, msg) {
+    const el = document.getElementById(id);
+    if (el) el.innerText = msg || "";
+  }
+
+  let _modoCoberturaActivo = false;
+
+  async function login() {
+    const nombre = document.getElementById("loginNombre").value.trim();
+    const pin = document.getElementById("loginPin").value.trim();
+    const pcAsignada = document.getElementById("pcSelector").value || "";
+
+    if (!nombre || !pin) {
+      setMsg("loginMsg", "Completá nombre y PIN.");
+      return;
     }
 
-    function applyHint(kind='hint') {
-      const move = bestMoveSuggestion();
-      clearHighlights();
-      if (!move) {
-        hintStatusEl.textContent = 'IA: no hay jugada posible con piezas actuales.';
-        return;
-      }
-      move.shape.forEach(([dr,dc]) => {
-        const cell = document.querySelector(`.cell[data-row="${move.r+dr}"][data-col="${move.c+dc}"]`);
-        cell?.classList.add(kind === 'ok' ? 'hint-ok' : 'hint');
-      });
-      const cellsFree = getFreeCells();
-      hintStatusEl.textContent = `IA: pieza ${move.idx + 1} en (${move.r + 1},${move.c + 1}) · clears:${move.firstClears} · futuro:${move.followMoves}`;
-      if (hintPulse) clearTimeout(hintPulse);
-      hintPulse = setTimeout(clearHighlights, 1700);
+    setMsg("loginMsg", "Validando...");
+
+    const r = await api({ action: "login", nombre, pin, pcAsignada, modoCovertura: _modoCoberturaActivo });
+
+    if (!r.ok) {
+      setMsg("loginMsg", r.error || "No se pudo ingresar.");
+      return;
     }
 
-    function autoHint(isSpawn) {
-      const free = getFreeCells();
-      const playableMoves = pieces.filter(Boolean).reduce((acc, shape) => acc + allPlacements(shape).length, 0);
-      const shouldHelp = free <= 20 || playableMoves <= 6 || (isSpawn && free <= 26);
-      hintStatusEl.textContent = shouldHelp
-        ? 'IA: tablero crítico detectado, activando ayuda predictiva.'
-        : `IA: estado estable · ${playableMoves} jugadas posibles.`;
-      if (shouldHelp) applyHint('ok');
-    }
-
-    function updateBoardUI() {
-      document.querySelectorAll('.cell').forEach(cell => {
-        const filled = board[cell.dataset.row][cell.dataset.col] === 1;
-        cell.classList.toggle('filled', filled);
-      });
-      scoreEl.textContent = score;
-      highEl.textContent = highScore;
-      freeEl.textContent = getFreeCells();
-    }
-
-    function showGameOver() {
-      gameEnded = true;
-      document.getElementById('final-score').textContent = score;
-      document.getElementById('final-turns').textContent = turn;
-      document.getElementById('final-clears').textContent = totalClears;
-      const subtitle = score >= highScore
-        ? 'Nuevo récord desbloqueado. ¡Muy buena partida!'
-        : `Te faltaron ${highScore - score} puntos para el récord.`;
-      document.getElementById('game-over-subtitle').textContent = subtitle;
-      gameOverEl.style.display = 'flex';
-      clearHighlights();
-      if (hintPulse) clearTimeout(hintPulse);
-    }
-
-    function resetGame() {
-      for (let r=0;r<9;r++) for (let c=0;c<9;c++) board[r][c] = 0;
-      score = 0;
-      pieces = [null, null, null];
-      pieceMeta = [{assist:false},{assist:false},{assist:false}];
-      turn = 0;
-      totalClears = 0;
-      assistCooldown = 0;
-      gameEnded = false;
-      clearHighlights();
-      gameOverEl.style.display = 'none';
-      hintStatusEl.textContent = 'IA: analizando tablero…';
-      spawnPieces();
-      updateBoardUI();
-    }
-
-    window.onpointermove = updateDragPos;
-    window.onpointerup = e => {
-      if (gameEnded || !dragging) return;
-      const x = e.clientX, y = e.clientY - 110;
-      const target = getCellAt(x,y);
-      if (target && canPlace(dragging.shape, target.r, target.c)) {
-        placePiece(dragging.shape, target.r, target.c, dragging.idx);
+    if (r.requiereConfirmacionCobertura) {
+      const confirma = confirm(
+        `Ya tenés una sesión activa en PC ${r.sesionActiva.pc} desde las ${r.sesionActiva.hora}.\n\n¿Querés cubrir otra PC?`
+      );
+      if (confirma) {
+        _modoCoberturaActivo = true;
+        setMsg("loginMsg", "Modo cobertura activo. Presioná Ingresar nuevamente.");
       } else {
-        document.getElementById(`slot-${dragging.idx}`).style.opacity = 1;
-        playSfx(180, 'sawtooth', 0.1);
-        autoHint(false);
+        setMsg("loginMsg", `Iniciá sesión desde PC ${r.sesionActiva.pc}.`);
       }
-      clearHighlights();
-      dragEl?.remove();
-      dragEl = null;
-      dragging = null;
-      renderTray();
+      return;
+    }
+
+    if (r.requierePcSelector) {
+      await mostrarSelectorPC(_modoCoberturaActivo);
+      setMsg("loginMsg", _modoCoberturaActivo
+        ? "Modo cobertura: elegí qué PC vas a cubrir y presioná Ingresar."
+        : "Sos franquero, elegí en qué PC te sentás y volvé a presionar Ingresar."
+      );
+      return;
+    }
+
+    _modoCoberturaActivo = false;
+    operador = r.operador;
+    localStorage.setItem("operadorActivo", JSON.stringify(operador));
+
+    await api({ action: "ficharingreso", nombre: operador.nombre });
+
+    if (r.cierresForzosos && r.cierresForzosos.length) {
+      alert("Se cerraron sesiones expiradas: " + r.cierresForzosos.join(", "));
+    }
+
+    mostrarApp();
+  }
+
+  async function mostrarSelectorPC(esCobertura) {
+    const wrap = document.getElementById("pcSelectorWrap");
+    const sel = document.getElementById("pcSelector");
+    const label = document.getElementById("pcSelectorLabel");
+    const r = await api({ action: "getpcs" });
+    sel.innerHTML = "";
+    (r.pcs || []).forEach(p => {
+      const opt = document.createElement("option");
+      opt.value = p.pc;
+      opt.textContent = p.pc;
+      sel.appendChild(opt);
+    });
+    label.textContent = esCobertura ? "PC que vas a cubrir" : "PC en la que te sentás (franquero)";
+    wrap.classList.remove("hidden");
+  }
+
+  async function mostrarApp() {
+    document.getElementById("loginCard").classList.add("hidden");
+    document.getElementById("app").classList.remove("hidden");
+
+    document.getElementById("operadorInfo").innerHTML = `
+      <span class="badge"><b>${operador.nombre}</b></span>
+      <button class="secondary" style="width:auto;padding:6px 14px;margin:0 0 0 8px;font-size:13px;" onclick="mostrarCambioPin()">🔑 Cambiar PIN</button>
+      <span class="badge">Turno: ${operador.turno}</span>
+      <span class="badge">PC: ${operador.pc}</span>
+      <span class="badge">${operador.modoCovertura ? 'Cubriendo' : 'Tipo: ' + operador.tipo}</span>
+    `;
+
+    const ant = localStorage.getItem("operadorAnterior") || "";
+    if (ant) document.getElementById("entrega").value = ant;
+
+    cargarNovedades();
+    historialRenderizar(historialCargar());
+    fwMostrar();
+
+    await sincronizarEstadoPausas();
+    cargarLimpiezaHoy();
+    cargarTelefonosPC();
+    cargarNovedades();
+    cargarTareas();
+    cargarMisNovedades();
+    cargarNotasTurnoAnteriores();
+    toggleDiferenciaCaja();
+  }
+
+  async function sincronizarEstadoPausas() {
+    const r = await api({ action: "getmispausas", nombre: operador.nombre });
+    if (r.ok) {
+      pausaBano = !!r.bano;
+      pausaFumar = !!r.fumar;
+      pausaLimpieza = !!r.limpieza;
+    }
+    actualizarBotones();
+  }
+
+  async function cargarLimpiezaHoy() {
+    const r = await api({ action: "getlimpiezahoy" });
+    const card = document.getElementById("limpiezaAvisoCard");
+    const box  = document.getElementById("limpiezaAvisoBox");
+    if (!r.ok || !r.pc) { card.classList.add("hidden"); return; }
+
+    const meToca = String(r.pc).toLowerCase() === String(operador.pc || "").toLowerCase();
+    const mananaInfo = r.manana
+      ? `<div class="small" style="margin-top:6px">Mañana limpia <b>${r.manana}</b></div>`
+      : "";
+
+    box.innerHTML = meToca
+      ? `<div class="alert">Hoy <b>${r.pc}</b> tiene la limpieza — te toca a vos.</div>
+         ${mananaInfo}
+         <span class="small">Rotación: ${r.rotacion.join(" → ")}</span>`
+      : `<div class="alert ok">Hoy limpia <b>${r.pc}</b>.</div>
+         ${mananaInfo}
+         <span class="small">Rotación: ${r.rotacion.join(" → ")}</span>`;
+    card.classList.remove("hidden");
+  }
+
+  function _telefsKey() { return "telefsEstado_" + (operador.pc || ""); }
+
+  function _telefsCargarEstado() {
+    try { return JSON.parse(localStorage.getItem(_telefsKey()) || "{}"); } catch { return {}; }
+  }
+
+  function _telefsPersistir(estado) {
+    localStorage.setItem(_telefsKey(), JSON.stringify(estado));
+  }
+
+  async function cargarTelefonosPC() {
+    if (!operador.pc) return;
+    const r = await api({ action: "gettelefonospc", pc: operador.pc });
+    const card = document.getElementById("telefonosCard");
+    const box  = document.getElementById("telefonosBox");
+    if (!r.ok || !r.telefonos.length) { card.classList.add("hidden"); return; }
+
+    window._telefsData = r.telefonos;
+    renderTelefonos();
+    card.classList.remove("hidden");
+  }
+
+  // Clave de estado por índice (no por nombre) para evitar colisiones si t.linea es undefined
+  function _telefKey(idx) { return "t" + idx; }
+
+  function renderTelefonos() {
+    const box = document.getElementById("telefonosBox");
+    const estado = _telefsCargarEstado();
+    const telefonos = window._telefsData || [];
+
+    box.innerHTML = telefonos.map((t, idx) => {
+      const key = _telefKey(idx);
+      const st = estado[key] || {};
+      const caido = st.caido || false;
+      const nota = st.nota || "";
+      const label = t.linea || ("Tel " + (idx + 1));
+      return `
+        <div class="telef-item${caido ? " caido" : ""}" data-tidx="${idx}">
+          <div>
+            <span class="badge"><b>${label}</b> · ${t.tipo || ""} · ${t.numero || ""}</span>
+            ${nota ? `<span class="telef-nota">📝 ${nota}</span>` : ""}
+          </div>
+          <button class="btn-icon tf-btn-caido" title="${caido ? "Restaurar" : "Marcar caído"}">${caido ? "✅" : "📵"}</button>
+          <button class="btn-icon tf-btn-nota"  title="Agregar nota">💬</button>
+          <button class="btn-icon tf-btn-log"   title="Historial de caídas">ℹ️</button>
+        </div>`;
+    }).join("");
+
+    // Event delegation — un solo listener para todo el box
+    box.onclick = (e) => {
+      const btn = e.target.closest(".btn-icon");
+      if (!btn) return;
+      const item = btn.closest("[data-tidx]");
+      if (!item) return;
+      const idx = parseInt(item.dataset.tidx);
+      if (isNaN(idx)) return;
+      if (btn.classList.contains("tf-btn-caido")) _toggleCaido(idx);
+      else if (btn.classList.contains("tf-btn-nota"))  _editarNota(idx, item);
+      else if (btn.classList.contains("tf-btn-log"))   _mostrarLog(idx, item);
     };
+  }
 
-    document.getElementById('hint-btn').addEventListener('click', () => applyHint('hint'));
-    document.getElementById('retry-btn').addEventListener('click', resetGame);
+  async function _toggleCaido(idx) {
+    const estado = _telefsCargarEstado();
+    const key = _telefKey(idx);
+    if (!estado[key]) estado[key] = {};
+    const ahora = !estado[key].caido;
+    estado[key].caido = ahora;
+    _telefsPersistir(estado);
+    renderTelefonos();
 
-    initBoard();
-    spawnPieces();
-    updateBoardUI();
-  </script>
+    const t = (window._telefsData || [])[idx];
+    const linea = t ? (t.linea || "") : "";
+    if (ahora) {
+      const motivo = prompt("Motivo de la caída (opcional):") || "";
+      await api({ action: "telefonocaido", nombre: operador.nombre, pc: operador.pc, linea, motivo });
+    } else {
+      await api({ action: "telefonolevantado", nombre: operador.nombre, pc: operador.pc, linea });
+    }
+  }
+
+  async function _mostrarLog(idx, item) {
+    const existente = item.querySelector(".telef-log-panel");
+    if (existente) { existente.remove(); return; }
+
+    const t = (window._telefsData || [])[idx];
+    const linea = t ? (t.linea || "") : "";
+    const r = await api({ action: "getlogtelefono", linea, pc: operador.pc });
+    const panel = document.createElement("div");
+    panel.className = "telef-log-panel";
+
+    if (!r.ok || !r.log || !r.log.length) {
+      panel.innerHTML = '<span class="small">Sin caídas registradas.</span>';
+    } else {
+      panel.innerHTML = r.log.map(e => `
+        <div class="telef-log-entry">
+          <span class="small"><b>Caída:</b> ${e.horaCaida || ""} — ${e.operadorCaida || ""}${e.motivo ? " · " + e.motivo : ""}</span><br>
+          <span class="small">${e.estado === "Cerrada"
+            ? "Levantado: " + (e.horaLevantado || "") + " (" + (e.duracion || 0) + " min) — " + (e.operadorLevanta || "")
+            : "<b style='color:#f88'>Abierta</b>"
+          }</span>
+        </div>`).join("");
+    }
+    item.appendChild(panel);
+  }
+
+  function _editarNota(idx, item) {
+    const estado = _telefsCargarEstado();
+    const key = _telefKey(idx);
+    const actual = (estado[key] || {}).nota || "";
+
+    const yaAbierto = item.querySelector(".telef-nota-input");
+    if (yaAbierto) { yaAbierto.focus(); return; }
+
+    const inp = document.createElement("input");
+    inp.className = "telef-nota-input";
+    inp.value = actual;
+    inp.placeholder = "Escribí una nota...";
+    inp.maxLength = 80;
+    item.appendChild(inp);
+    inp.focus();
+
+    function guardar() {
+      const e2 = _telefsCargarEstado();
+      if (!e2[key]) e2[key] = {};
+      e2[key].nota = inp.value.trim();
+      _telefsPersistir(e2);
+      renderTelefonos();
+    }
+    inp.addEventListener("keydown", ev => { if (ev.key === "Enter") guardar(); if (ev.key === "Escape") renderTelefonos(); });
+    inp.addEventListener("blur", guardar);
+  }
+
+  function mostrarCambioPin() {
+    document.getElementById("cambiarPinCard").classList.remove("hidden");
+    document.getElementById("pinActual").value = "";
+    document.getElementById("pinNuevo").value = "";
+    document.getElementById("pinNuevoConfirm").value = "";
+    setMsg("cambiarPinMsg", "");
+  }
+
+  function ocultarCambioPin() {
+    document.getElementById("cambiarPinCard").classList.add("hidden");
+  }
+
+  async function cambiarPin() {
+    const pinActual = document.getElementById("pinActual").value.trim();
+    const pinNuevo = document.getElementById("pinNuevo").value.trim();
+    const pinConfirm = document.getElementById("pinNuevoConfirm").value.trim();
+
+    if (!pinActual || !pinNuevo || !pinConfirm) {
+      setMsg("cambiarPinMsg", "Completá todos los campos.");
+      return;
+    }
+
+    if (pinNuevo !== pinConfirm) {
+      setMsg("cambiarPinMsg", "Los PINs nuevos no coinciden.");
+      return;
+    }
+
+    setMsg("cambiarPinMsg", "Guardando...");
+
+    const r = await api({
+      action: "cambiarpin",
+      nombre: operador.nombre,
+      pinActual,
+      pinNuevo
+    });
+
+    if (r.mensaje === "API activa") {
+      setMsg("cambiarPinMsg", "El Apps Script deployed NO tiene la acción 'cambiarpin'. Necesitás crear una NUEVA implementación (no solo guardar el código).");
+      return;
+    }
+
+    if (r.ok && r.debug && r.debug.nuevoValor) {
+      setMsg("cambiarPinMsg", `PIN actualizado correctamente (fila ${r.debug.fila}, valor: ${r.debug.nuevoValor}).`);
+      setTimeout(ocultarCambioPin, 2500);
+    } else if (r.ok) {
+      setMsg("cambiarPinMsg", "Respuesta ok pero sin confirmación de escritura. Revisá la implementación del Apps Script.");
+    } else {
+      const debug = r.debug ? "\nDEBUG: " + JSON.stringify(r.debug) : "";
+      setMsg("cambiarPinMsg", (r.error || "No se pudo actualizar el PIN.") + debug);
+    }
+  }
+
+  async function cerrarSesion() {
+    if (operador && operador.nombre) {
+      localStorage.setItem("operadorAnterior", operador.nombre);
+    }
+    const r = await api({ action: "ficharsalida", nombre: operador.nombre });
+    if (r && r.pausasCerradas && r.pausasCerradas.length) {
+      alert("Se cerraron pausas abiertas: " + r.pausasCerradas.join(", "));
+    }
+    localStorage.removeItem("operadorActivo");
+    localStorage.removeItem("historialPausas");
+    operador = null;
+    location.reload();
+  }
+
+  // HISTORIAL — persiste durante toda la sesión del operador,
+  // se borra solo al cerrar sesión (no por cambio de día / medianoche)
+  function historialCargar() {
+    const raw = localStorage.getItem("historialPausas");
+    let data = null;
+    try { data = JSON.parse(raw); } catch(e) {}
+    if (!data) {
+      data = { items: [] };
+      localStorage.setItem("historialPausas", JSON.stringify(data));
+    }
+    if (!data.items) data.items = [];
+    return data;
+  }
+
+  function historialAgregar(item) {
+    const data = historialCargar();
+    data.items.push(item);
+    localStorage.setItem("historialPausas", JSON.stringify(data));
+    historialRenderizar(data);
+  }
+
+  function historialActualizarUltimo(campos) {
+    const data = historialCargar();
+    for (let idx = data.items.length - 1; idx >= 0; idx--) {
+      const it = data.items[idx];
+      if (it && typeof it === "object" && it.tipo === campos.tipo && !it.fin) {
+        Object.assign(it, campos);
+        break;
+      }
+    }
+    localStorage.setItem("historialPausas", JSON.stringify(data));
+    historialRenderizar(data);
+  }
+
+  function historialRenderizar(data) {
+    const box = document.getElementById("historialBox");
+    if (!data || !data.items.length) {
+      box.innerHTML = `<span class="small">Sin registros todavía.</span>`;
+      return;
+    }
+
+    const iconos = { "baño": "🚽", "fumar": "🚬", "limpieza": "🧹", "tarea": "⚡", "info": "ℹ️" };
+    const labels = { "baño": "Baño", "fumar": "Fumar", "limpieza": "Limpieza", "tarea": "Tarea", "info": "Info" };
+
+    // Filtrar items inválidos (strings u objetos sin .tipo) que pudieran haber quedado
+    const items = data.items.filter(i => i && typeof i === "object" && i.tipo);
+
+    if (!items.length) {
+      box.innerHTML = `<span class="small">Sin registros todavía.</span>`;
+      return;
+    }
+
+    box.innerHTML = items.map(i => {
+      const duracion = i.minutos != null
+        ? `${i.minutos} min${i.excedio === "Sí" ? " ⚠️" : ""}`
+        : "en curso...";
+      const fin = i.fin ? ` → ${i.fin}` : "";
+      const label = i.label || (labels[i.tipo] || i.tipo);
+      return `<div class="novedad" style="padding:10px 14px;margin-bottom:8px;">
+        ${iconos[i.tipo] || "📌"} <b>${label}</b>
+        ${i.inicio ? `&nbsp;·&nbsp; ${i.inicio}${fin}` : ""}
+        &nbsp;·&nbsp; <span class="small">${duracion}</span>
+      </div>`;
+    }).join("");
+  }
+
+  const PAUSAS_CONFIG = {
+    bano:     { tipo: "baño",     accionInicio: "banoinicio",     accionFin: "banofin",     labelInicio: "🚽 Voy al baño",      labelFin: "🚽 Volví del baño",  fwTipInicio: "Iniciar baño",     fwTipFin: "Finalizar baño",     mainBtn: "banoBtn",     fwBtn: "fwBanoBtn",     fwTip: "fwBanoTip" },
+    fumar:    { tipo: "fumar",    accionInicio: "fumarinicio",    accionFin: "fumarfin",    labelInicio: "🚬 Voy a fumar",      labelFin: "🚬 Volví de fumar",  fwTipInicio: "Iniciar fumar",    fwTipFin: "Finalizar fumar",    mainBtn: "fumarBtn",    fwBtn: "fwFumarBtn",    fwTip: "fwFumarTip" },
+    limpieza: { tipo: "limpieza", accionInicio: "limpiezainicio", accionFin: "limpiezafin", labelInicio: "🧹 Iniciar limpieza", labelFin: "🧹 Terminar limpieza", fwTipInicio: "Iniciar limpieza", fwTipFin: "Finalizar limpieza", mainBtn: "limpiezaBtn", fwBtn: "fwLimpiezaBtn", fwTip: "fwLimpiezaTip" }
+  };
+
+  let _pausaEnCurso = false;
+
+  async function pausaToggle(clave) {
+    if (_pausaEnCurso) return;
+    _pausaEnCurso = true;
+
+    const cfg = PAUSAS_CONFIG[clave];
+    const abierta = clave === "bano" ? pausaBano : clave === "fumar" ? pausaFumar : pausaLimpieza;
+
+    // Deshabilitar todos los botones de pausa mientras procesa
+    ["banoBtn","fumarBtn","limpiezaBtn","fwBanoBtn","fwFumarBtn","fwLimpiezaBtn"].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) { el.disabled = true; el.style.opacity = "0.5"; }
+    });
+
+    setMsg("accionMsg", abierta ? `Cerrando ${cfg.tipo}...` : `Iniciando ${cfg.tipo}...`);
+
+    const r = await api({
+      action: abierta ? cfg.accionFin : cfg.accionInicio,
+      nombre: operador.nombre,
+      pcAsignada: operador.pc || ""
+    });
+
+    if (!r.ok) {
+      setMsg("accionMsg", r.error || "Error.");
+      if (r.bloqueoCruzado) alert("⚠️ " + r.error);
+      _pausaEnCurso = false;
+      actualizarBotones();
+      return;
+    }
+
+    if (abierta) {
+      historialActualizarUltimo({ tipo: cfg.tipo, fin: r.regreso || horaActual_(), minutos: r.minutos, excedio: r.excedio });
+      setMsg("accionMsg", `Cerrado ${cfg.tipo}. Minutos: ${r.minutos} · Excedió: ${r.excedio}`);
+    } else {
+      historialAgregar({ tipo: cfg.tipo, inicio: r.inicio || horaActual_() });
+      setMsg("accionMsg", `${cfg.tipo} iniciada: ${r.inicio || ""}`);
+    }
+
+    if (clave === "bano") pausaBano = !abierta;
+    else if (clave === "fumar") pausaFumar = !abierta;
+    else pausaLimpieza = !abierta;
+
+    _pausaEnCurso = false;
+    actualizarBotones();
+  }
+
+  function banoToggle()     { return pausaToggle("bano"); }
+  function fumarToggle()    { return pausaToggle("fumar"); }
+  function limpiezaToggle() { return pausaToggle("limpieza"); }
+
+  function actualizarBotones() {
+    const estados = { bano: pausaBano, fumar: pausaFumar, limpieza: pausaLimpieza };
+    Object.keys(PAUSAS_CONFIG).forEach(k => {
+      const cfg = PAUSAS_CONFIG[k];
+      const abierta = estados[k];
+
+      const main = document.getElementById(cfg.mainBtn);
+      if (main) {
+        main.textContent = abierta ? cfg.labelFin : cfg.labelInicio;
+        main.classList.toggle("warning", !abierta);
+        main.classList.toggle("success", abierta);
+        main.disabled = false;
+        main.style.opacity = "";
+      }
+
+      const fwTip = document.getElementById(cfg.fwTip);
+      if (fwTip) fwTip.innerText = abierta ? cfg.fwTipFin : cfg.fwTipInicio;
+
+      const fwBtn = document.getElementById(cfg.fwBtn);
+      if (fwBtn) {
+        fwBtn.style.background = abierta ? "#16a765" : "";
+        fwBtn.disabled = false;
+        fwBtn.style.opacity = "";
+      }
+    });
+  }
+
+  function horaActual_() {
+    return new Date().toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+  }
+
+  function toggleDiferenciaCaja() {
+    const ok = document.getElementById("cajaOk").value === "Sí";
+    document.getElementById("diferenciaCajaWrap").style.display = ok ? "none" : "block";
+  }
+
+  async function guardarRecepcion() {
+    const entrega = document.getElementById("entrega").value.trim();
+    if (!entrega) {
+      setMsg("recepcionMsg", "Completá el nombre del operador que entrega.");
+      return;
+    }
+    setMsg("recepcionMsg", "Guardando recepción...");
+
+    const r = await api({
+      action: "recepcionturno",
+      recibe: operador.nombre,
+      nombre: operador.nombre,
+      entrega: document.getElementById("entrega").value,
+      puestoOrden: document.getElementById("puestoOrden").value,
+      whatsappOk: document.getElementById("whatsappOk").value,
+      cajaOk: document.getElementById("cajaOk").value,
+      diferenciaCaja: document.getElementById("diferenciaCaja").value,
+      revinculacionOk: document.getElementById("revinculacionOk").value,
+      limpiezaCumplida: document.getElementById("limpiezaCumplida").value,
+      observaciones: document.getElementById("obsRecepcion").value
+    });
+
+    setMsg(
+      "recepcionMsg",
+      r.ok ? "Recepción guardada correctamente." : r.error
+    );
+  }
+
+  async function reportarNovedad() {
+    const detalle = document.getElementById("detalleNovedad").value.trim();
+
+    if (!detalle) {
+      setMsg("novedadMsg", "Completá el detalle de la novedad.");
+      return;
+    }
+
+    setMsg("novedadMsg", "Guardando novedad...");
+
+    const r = await api({
+      action: "novedad",
+      nombre: operador.nombre,
+      tipo: document.getElementById("tipoNovedad").value,
+      prioridad: document.getElementById("prioridadNovedad").value,
+      detalle: detalle,
+      observaciones: document.getElementById("obsNovedad").value
+    });
+
+    if (r.ok) {
+      setMsg("novedadMsg", `Novedad registrada. ID: ${r.id || ""}`);
+      document.getElementById("detalleNovedad").value = "";
+      document.getElementById("obsNovedad").value = "";
+      cargarNovedades();
+      cargarMisNovedades();
+    } else {
+      setMsg("novedadMsg", r.error || "No se pudo registrar novedad.");
+    }
+  }
+
+  async function cargarNovedades(prefetched) {
+    const box = document.getElementById("novedadesBox");
+
+    let r;
+    if (prefetched && Array.isArray(prefetched)) {
+      r = { ok: true, novedades: prefetched };
+    } else {
+      box.innerHTML = "Cargando novedades...";
+      r = await api({
+        action: "getnovedadespendientes",
+        pc: operador.pc
+      });
+    }
+
+    if (!r.ok) {
+      box.innerHTML = `<div class="alert">Error cargando novedades: ${r.error || ""}</div>`;
+      return;
+    }
+
+    const badge = document.getElementById("novedadesBadge");
+
+    if (!r.novedades || r.novedades.length === 0) {
+      box.innerHTML = `<div class="alert ok">Sin novedades pendientes para esta PC.</div>`;
+      badge.style.display = "none";
+      _novedadesPendientesCount = 0;
+      return;
+    }
+
+    badge.textContent = r.novedades.length;
+    badge.style.display = "inline-block";
+    _novedadesPendientesCount = r.novedades.length;
+
+    box.innerHTML = "";
+
+    r.novedades.forEach(n => {
+      const div = document.createElement("div");
+      div.className = "novedad";
+      const notaActual = n.resolucion || "";
+
+      div.innerHTML = `
+        <b>${n.tipo || "Novedad"}</b> · ${n.prioridad || ""} · ${n.estado || ""}<br>
+        <span class="small">
+          Fecha: ${n.fecha || ""} | Turno: ${n.turno || ""} | PC: ${n.pc || ""} | Operador: ${n.operador || ""}
+        </span>
+        <p>${n.detalle || ""}</p>
+        ${notaActual ? `<p class="small" style="color:#f0b429">📝 ${notaActual}</p>` : ""}
+
+        <div class="row">
+          <button class="warning" onclick="actualizarNovedad('${n.id}', 'En seguimiento')">En seguimiento</button>
+          <button class="success" onclick="actualizarNovedad('${n.id}', 'Resuelta')">Resuelta</button>
+          <button class="secondary" onclick="toggleNotaNovedad('${n.id}', this)" style="width:auto;padding:6px 12px">📝 Nota</button>
+        </div>
+        <div id="nota-${n.id}" style="display:none;margin-top:6px">
+          <textarea class="novedad-nota-input" placeholder="Agregar nota..." rows="2">${notaActual}</textarea>
+          <button class="primary" onclick="guardarNotaNovedad('${n.id}', this)" style="margin-top:4px">Guardar nota</button>
+        </div>
+        ${_bloqueComentariosHtml(n.id)}
+      `;
+
+      box.appendChild(div);
+    });
+  }
+
+  async function actualizarNovedad(id, estado) {
+    let resolucion = "";
+
+    if (estado === "Resuelta") {
+      resolucion = prompt("Detalle de resolución:") || "";
+    } else {
+      resolucion = "Tomado en seguimiento";
+    }
+
+    const r = await api({
+      action: "actualizarnovedad",
+      id,
+      estado,
+      revisadoPor: operador.nombre,
+      resolucion
+    });
+
+    if (r.ok) {
+      cargarNovedades();
+    } else {
+      alert(r.error || "No se pudo actualizar la novedad.");
+    }
+  }
+
+  function toggleNotaNovedad(id, btn) {
+    const wrap = document.getElementById("nota-" + id);
+    if (!wrap) return;
+    const visible = wrap.style.display !== "none";
+    wrap.style.display = visible ? "none" : "block";
+    if (!visible) wrap.querySelector("textarea").focus();
+  }
+
+  async function guardarNotaNovedad(id, btn) {
+    const wrap = document.getElementById("nota-" + id);
+    const nota = wrap ? wrap.querySelector("textarea").value.trim() : "";
+    const r = await api({ action: "notarnovedad", id, nota });
+    if (r.ok) {
+      wrap.style.display = "none";
+      cargarNovedades();
+    } else {
+      alert(r.error || "No se pudo guardar la nota.");
+    }
+  }
+
+  async function cargarTareas(prefetched) {
+    if (!operador || !operador.pc) return;
+    let r;
+    if (prefetched && typeof prefetched === "object") {
+      r = { ok: true, tareas: prefetched.tareas || [], ultimaCompletada: prefetched.ultimaCompletada || null };
+    } else {
+      r = await api({ action: "gettareaspc", pc: operador.pc });
+    }
+    const card = document.getElementById("tareasCard");
+    const box = document.getElementById("tareasBox");
+    const ultimaBox = document.getElementById("ultimaTareaBox");
+
+    if (!r.ok) { card.classList.add("hidden"); return; }
+
+    if (r.ultimaCompletada) {
+      ultimaBox.innerHTML = `<div class="alert ok" style="margin-top:8px">Última tarea completada: <b>${r.ultimaCompletada.tarea}</b> — ${r.ultimaCompletada.fechaCompletada || ""} por ${r.ultimaCompletada.completoPor || ""}</div>`;
+    } else {
+      ultimaBox.innerHTML = "";
+    }
+
+    _tareasPendientesCount = (r.tareas || []).length;
+
+    if (!r.tareas.length) {
+      box.innerHTML = "";
+      card.classList[r.ultimaCompletada ? "remove" : "add"]("hidden");
+      return;
+    }
+
+    box.innerHTML = r.tareas.map(t => `
+      <div class="novedad">
+        <b>${t.tarea}</b><br>
+        <span class="small">Asignada: ${t.fecha || ""}</span>
+        <div class="row" style="margin-top:8px">
+          <button class="success" onclick="completarTarea(${t.fila}, '${(t.tarea || "").replace(/'/g, "\\'")}')">Completar</button>
+        </div>
+      </div>
+    `).join("");
+
+    card.classList.remove("hidden");
+  }
+
+  async function cargarMisNovedades(prefetched) {
+    if (!operador) return;
+    let arr;
+    if (prefetched && Array.isArray(prefetched)) {
+      arr = prefetched;
+    } else {
+      const r = await api({ action: "getmisnovedades", nombre: operador.nombre });
+      if (!r.ok) return;
+      arr = r.novedades || [];
+    }
+
+    const card = document.getElementById("misNovedadesCard");
+    const box  = document.getElementById("misNovedadesBox");
+    const badge = document.getElementById("misNovedadesBadge");
+
+    if (!arr.length) {
+      card.style.display = "none";
+      return;
+    }
+    card.style.display = "block";
+    badge.textContent = arr.length;
+
+    box.innerHTML = arr.map(n => {
+      const estado = String(n.estado || "Pendiente");
+      const esResuelta = estado.toLowerCase() === "resuelta";
+      const color = esResuelta ? "#3eb368" : (estado.toLowerCase() === "en seguimiento" ? "#f0b429" : "#d93025");
+      return `
+        <div class="novedad" style="border-left:3px solid ${color}">
+          <b>${n.tipo || "Novedad"}</b> · <span style="color:${color}">${estado}</span> · ${n.prioridad || ""}<br>
+          <span class="small">${n.fecha || ""} · ${n.id || ""}</span>
+          <p style="margin:6px 0">${n.detalle || ""}</p>
+          ${n.resolucion ? `<p class="small" style="background:#222;padding:6px 10px;border-radius:4px;margin:4px 0">📝 <b>${n.revisadoPor || "Admin"}:</b> ${n.resolucion}</p>` : ""}
+          ${_bloqueComentariosHtml(n.id)}
+        </div>
+      `;
+    }).join("");
+  }
+
+  function toggleMisNovedades() {
+    const box = document.getElementById("misNovedadesBox");
+    const arrow = document.getElementById("misNovedadesArrow");
+    const visible = box.style.display !== "none";
+    box.style.display = visible ? "none" : "block";
+    arrow.textContent = visible ? "▸" : "▾";
+  }
+
+  // === NOTAS DEL TURNO (POR PC) ===
+  async function cargarNotasTurnoAnteriores() {
+    if (!operador) return;
+    const box = document.getElementById("notasAnterioresBox");
+    const r = await api({ action: "getnotaturnoanterior", pc: operador.pc });
+    if (!r.ok || !r.notas || !r.notas.length) {
+      box.innerHTML = `<div class="alert ok">Sin notas previas para esta PC.</div>`;
+      return;
+    }
+    box.innerHTML = `<b style="font-size:13px;color:#bbb">Notas previas — PC ${operador.pc}:</b>` + r.notas.map(n => `
+      <div class="novedad" style="border-left:3px solid #1a73e8;background:#1f2937;margin-top:6px">
+        <span class="small">${n.fecha || ""} · ${n.turno || ""} · ${n.operador || ""}</span>
+        <p style="margin:6px 0 0">${(n.nota || "").replace(/</g, "&lt;")}</p>
+      </div>
+    `).join("");
+  }
+
+  async function guardarMiNotaTurno() {
+    const nota = document.getElementById("miNotaTurno").value.trim();
+    if (!nota) { setMsg("notaTurnoMsg", "Escribí la nota primero."); return; }
+    setMsg("notaTurnoMsg", "Guardando...");
+    const r = await api({
+      action: "guardarnotaturno",
+      nombre: operador.nombre,
+      pc: operador.pc,
+      nota
+    });
+    if (r.ok) {
+      setMsg("notaTurnoMsg", "Nota guardada ✓");
+      document.getElementById("miNotaTurno").value = "";
+      cargarNotasTurnoAnteriores();
+    } else {
+      setMsg("notaTurnoMsg", r.error || "Error al guardar.");
+    }
+  }
+
+  // === COMENTARIOS EN NOVEDADES ===
+  async function toggleComentarios(id, btn) {
+    const wrap = document.getElementById("coment-" + id);
+    if (!wrap) return;
+    const visible = wrap.style.display !== "none";
+    if (visible) {
+      wrap.style.display = "none";
+      return;
+    }
+    wrap.style.display = "block";
+    _attachPasteHandler("coment-ta-" + id, "coment-preview-" + id);
+    await renderComentarios(id);
+  }
+
+  async function renderComentarios(id) {
+    const lista = document.getElementById("coment-lista-" + id);
+    if (!lista) return;
+    lista.innerHTML = "Cargando...";
+    const r = await api({ action: "getcomentariosnovedad", id });
+    if (!r.ok) { lista.innerHTML = `<div class="alert">Error: ${r.error || ""}</div>`; return; }
+
+    if (!r.comentarios || !r.comentarios.length) {
+      lista.innerHTML = `<div class="small" style="color:#888;padding:6px 0">Sin comentarios todavía.</div>`;
+      return;
+    }
+
+    const yo = (operador && operador.nombre || "").toLowerCase();
+    lista.innerHTML = r.comentarios.map(c => {
+      const esMio = String(c.autor || "").toLowerCase() === yo;
+      const ts = c.timestamp ? new Date(c.timestamp).toLocaleString("es-AR", {hour12:false}) : "";
+      const editado = c.editado ? `<span class="small" style="color:#888"> (editado)</span>` : "";
+      const imagen = c.imagenURL ? `
+        <a href="${c.imagenURL}" target="_blank" rel="noopener">
+          <img src="${c.imagenURL}" style="max-width:280px;max-height:200px;margin-top:6px;border-radius:6px;border:1px solid #444;display:block">
+        </a>` : "";
+      return `
+        <div style="background:#1a1a1a;padding:8px 12px;border-radius:6px;margin-bottom:6px;border-left:2px solid ${esMio ? "#1a73e8" : "#444"}">
+          <div class="small"><b>${c.autor || ""}</b> · ${ts}${editado}</div>
+          <div id="ctxt-${c.fila}" style="margin-top:4px;white-space:pre-wrap">${(c.texto || "").replace(/</g, "&lt;")}</div>
+          ${imagen}
+          ${esMio ? `
+            <div class="row" style="margin-top:6px;gap:6px">
+              <button class="secondary" style="width:auto;padding:4px 10px;font-size:12px" onclick="editarComentarioUI(${c.fila}, '${id}')">Editar</button>
+              <button class="warning" style="width:auto;padding:4px 10px;font-size:12px" onclick="eliminarComentarioUI(${c.fila}, '${id}')">Eliminar</button>
+            </div>
+          ` : ""}
+        </div>
+      `;
+    }).join("");
+  }
+
+  async function agregarComentarioUI(id) {
+    const ta = document.getElementById("coment-ta-" + id);
+    if (!ta) return;
+    const texto = ta.value.trim();
+    const imagen = ta._imagenPendiente || "";
+    if (!texto && !imagen) return;
+
+    const params = { action: "agregarcomentario", id, nombre: operador.nombre, nota: texto };
+    if (imagen) params.imagenBase64 = imagen;
+
+    const r = imagen ? await apiPost(params) : await api(params);
+    if (r.ok) {
+      ta.value = "";
+      ta._imagenPendiente = null;
+      const preview = document.getElementById("coment-preview-" + id);
+      if (preview) preview.innerHTML = "";
+      renderComentarios(id);
+    } else {
+      alert(r.error || "Error al agregar comentario.");
+    }
+  }
+
+  async function editarComentarioUI(fila, id) {
+    const div = document.getElementById("ctxt-" + fila);
+    if (!div) return;
+    const actual = div.textContent || "";
+    const nuevo = prompt("Editar comentario:", actual);
+    if (nuevo === null) return;
+    const texto = nuevo.trim();
+    if (!texto) return;
+    const r = await api({
+      action: "editarcomentario",
+      fila, nombre: operador.nombre, nota: texto
+    });
+    if (r.ok) renderComentarios(id);
+    else alert(r.error || "Error al editar.");
+  }
+
+  async function eliminarComentarioUI(fila, id) {
+    if (!confirm("¿Eliminar comentario?")) return;
+    const r = await api({
+      action: "eliminarcomentario",
+      fila, nombre: operador.nombre
+    });
+    if (r.ok) renderComentarios(id);
+    else alert(r.error || "Error al eliminar.");
+  }
+
+  function _bloqueComentariosHtml(id) {
+    return `
+      <div class="row" style="margin-top:6px">
+        <button class="secondary" style="width:auto;padding:6px 12px" onclick="toggleComentarios('${id}', this)">💬 Comentarios</button>
+      </div>
+      <div id="coment-${id}" style="display:none;margin-top:8px">
+        <div id="coment-lista-${id}"></div>
+        <div style="margin-top:8px">
+          <textarea id="coment-ta-${id}" placeholder="Escribir comentario... (podés pegar una imagen con Ctrl+V)" rows="2"></textarea>
+          <div id="coment-preview-${id}"></div>
+          <button class="primary" style="margin-top:4px" onclick="agregarComentarioUI('${id}')">Agregar comentario</button>
+        </div>
+      </div>
+    `;
+  }
+
+  async function completarTarea(fila, texto) {
+    const r = await api({ action: "completartarea", tareaId: fila, nombre: operador.nombre });
+    if (r.ok) {
+      historialAgregar({ tipo: "tarea", inicio: horaActual_(), label: "Tarea: " + texto, minutos: null });
+      cargarTareas();
+    }
+  }
+
+  let _verifFails = 0;
+  let _tareasPendientesCount = 0;
+  let _novedadesPendientesCount = 0;
+
+  // Polling consolidado: 1 fetch en lugar de 3
+  setInterval(async () => {
+    if (!operador) return;
+
+    try {
+      const r = await api({ action: "getpoll", nombre: operador.nombre, pc: operador.pc });
+
+      if (r && r.ok === true && r.activo === false) {
+        _verifFails++;
+        if (_verifFails >= 2) {
+          alert("Se inhabilitó tu acceso. Comunicarte con tu superior.");
+          localStorage.removeItem("operadorActivo");
+          localStorage.removeItem("historialPausas");
+          operador = null;
+          location.reload();
+          return;
+        }
+      } else if (r && r.ok === true) {
+        _verifFails = 0;
+        cargarNovedades(r.novedades);
+        cargarTareas({ tareas: r.tareas, ultimaCompletada: r.ultimaCompletada });
+        cargarMisNovedades(r.misNovedades);
+      }
+    } catch (e) {
+      _verifFails = 0;
+    }
+  }, 30000);
+
+  // Notificaciones horarias (toast no-bloqueante)
+  function mostrarToast(mensaje, tipo) {
+    let cont = document.getElementById("toastContainer");
+    if (!cont) {
+      cont = document.createElement("div");
+      cont.id = "toastContainer";
+      cont.style.cssText = "position:fixed;bottom:24px;right:24px;z-index:9999;display:flex;flex-direction:column;gap:8px;max-width:340px";
+      document.body.appendChild(cont);
+    }
+    const t = document.createElement("div");
+    const bg = tipo === "warning" ? "#f0b429" : (tipo === "error" ? "#d93025" : "#1a73e8");
+    t.style.cssText = `background:${bg};color:#fff;padding:14px 18px;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,0.3);font-size:14px;cursor:pointer;animation:slideIn 0.3s ease`;
+    t.textContent = mensaje;
+    t.onclick = () => t.remove();
+    cont.appendChild(t);
+    setTimeout(() => { if (t.parentNode) t.remove(); }, 12000);
+  }
+
+  setInterval(() => {
+    if (!operador) return;
+    const partes = [];
+    if (_tareasPendientesCount > 0) partes.push(`${_tareasPendientesCount} tarea${_tareasPendientesCount > 1 ? "s" : ""} pendiente${_tareasPendientesCount > 1 ? "s" : ""}`);
+    if (_novedadesPendientesCount > 0) partes.push(`${_novedadesPendientesCount} novedad${_novedadesPendientesCount > 1 ? "es" : ""} sin revisar`);
+    if (partes.length) mostrarToast("⏰ Recordatorio: tenés " + partes.join(" y "), "warning");
+  }, 3600000);
+
+  // FLOATING WIDGET
+  const fwWidget = document.getElementById("floatWidget");
+  const fwActions = document.getElementById("fwActions");
+  let fwOpen = false;
+  let pausaBano = false;
+  let pausaFumar = false;
+  let pausaLimpieza = false;
+
+  function fwMostrar() {
+    fwWidget.classList.remove("hidden");
+  }
+
+  function fwToggle() {
+    fwOpen = !fwOpen;
+    fwActions.classList.toggle("hidden", !fwOpen);
+  }
+
+  // Drag
+  const gear = document.getElementById("fwGear");
+  let dragging = false, dragStartX, dragStartY, widgetStartX, widgetStartY;
+
+  gear.addEventListener("mousedown", e => {
+    dragging = true;
+    dragStartX = e.clientX;
+    dragStartY = e.clientY;
+    const rect = fwWidget.getBoundingClientRect();
+    widgetStartX = rect.left;
+    widgetStartY = rect.top;
+    e.preventDefault();
+  });
+
+  document.addEventListener("mousemove", e => {
+    if (!dragging) return;
+    const dx = e.clientX - dragStartX;
+    const dy = e.clientY - dragStartY;
+    fwWidget.style.left   = (widgetStartX + dx) + "px";
+    fwWidget.style.top    = (widgetStartY + dy) + "px";
+    fwWidget.style.right  = "auto";
+    fwWidget.style.bottom = "auto";
+  });
+
+  document.addEventListener("mouseup", () => { dragging = false; });
+</script>
 </body>
 </html>
-<script async data-explicit-opt-in="true" data-deployment-id="dpl_68APTJEPeMgshduwEMomES5SnEPq" src="https://vercel.live/_next-live/feedback/feedback.js"></script>
