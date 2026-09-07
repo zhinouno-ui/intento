@@ -204,9 +204,14 @@ textarea{resize:vertical;min-height:76px}
 .titular-wrap input{margin-bottom:0}
 input.prellenado{background:rgba(58,208,127,.07);border-color:rgba(58,208,127,.42);
   color:#fff;font-weight:700;padding-right:104px}
-.titular-marca{position:absolute;right:10px;top:50%;transform:translateY(-50%);
-  pointer-events:none;background:rgba(58,208,127,.16);border:1px solid rgba(58,208,127,.4);
-  color:var(--green);border-radius:999px;padding:5px 10px;font-size:11px;font-weight:800;white-space:nowrap}
+/* Botón real, no un cartelito pasivo. "Volvé a tocar el campo" obliga a adivinar que el campo
+   hace algo al tocarlo — nadie lo descubre, menos alguien grande. Un botón que dice CAMBIAR se
+   entiende sin explicación. 44px de alto: se toca con el pulgar sin errarle. */
+.titular-cambiar{position:absolute;right:8px;top:50%;transform:translateY(-50%);
+  min-height:38px;background:rgba(255,255,255,.06);border:1px solid var(--line-2);
+  color:var(--gold-2);border-radius:10px;padding:0 14px;font-size:13px;font-weight:800;
+  cursor:pointer;font-family:inherit;white-space:nowrap}
+.titular-cambiar:active{transform:translateY(-50%) scale(.94)}
 .titular-aviso{font-size:11.5px;color:#fbbf24;background:rgba(251,191,36,.09);
   border:1px solid rgba(251,191,36,.28);border-radius:9px;padding:7px 9px;margin:8px 0 0}
 .muted-line{color:var(--muted);font-size:13px;padding:8px 0}
@@ -245,7 +250,12 @@ input.prellenado{background:rgba(58,208,127,.07);border-color:rgba(58,208,127,.4
 .transfer-field .tf-main{flex:1;min-width:0}
 .transfer-label{font-size:10px;color:#8b8b97;text-transform:uppercase;font-weight:800;letter-spacing:.5px;margin-bottom:4px}
 .transfer-value{font-size:15.5px;font-weight:800;color:#fff;word-break:break-all}
-.copy-btn{flex-shrink:0;border:1px solid var(--line-2);border-radius:10px;background:#20202a;color:#fff;padding:11px 13px;font-size:12.5px;font-weight:800;cursor:pointer;transition:.14s}
+/* Copiar es LA acción de esta pantalla: la persona viene a buscar el alias y el CBU para
+   llevárselos al banco. El botón era chico y del mismo gris que el fondo. Ahora tiene el borde
+   dorado de la marca, 46px de alto (pulgar, no uña) y no compite con nada más de la tarjeta. */
+.copy-btn{flex-shrink:0;border:1px solid rgba(233,194,92,.45);border-radius:10px;
+  background:rgba(233,194,92,.12);color:var(--gold-2);padding:0 16px;min-height:46px;
+  font-size:13.5px;font-weight:800;cursor:pointer;transition:.14s}
 .copy-btn:hover{background:#2a2a36}.copy-btn.done{background:var(--green);border-color:var(--green);color:#04210f}.copy-btn:active{transform:scale(.94)}
 /* El titular de NUESTRA cuenta: dato de referencia, no algo para copiar al formulario.
    Antes era un campo igual a los demás y la gente lo confundía con el titular que se le pide. */
@@ -294,6 +304,8 @@ input.prellenado{background:rgba(58,208,127,.07);border-color:rgba(58,208,127,.4
 .rp-fill{height:100%;border-radius:999px;background:linear-gradient(90deg,var(--gold-deep),var(--gold));transition:width .6s ease;min-width:6px}
 .rp-pct{font-size:11px;color:var(--gold-2);margin-top:6px;font-weight:700;text-align:center}
 .rp-list{margin-top:11px;display:flex;flex-direction:column;gap:5px}
+.rp-cierre{margin-top:11px;padding:10px 12px;border-radius:10px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.10);font-size:12.5px;line-height:1.5}
+.rp-cierre-nota{margin-top:6px;font-style:italic;color:var(--gold-2)}
 .rp-item{display:flex;justify-content:space-between;gap:8px;font-size:12px;background:rgba(255,255,255,.04);border:1px solid var(--line);border-radius:9px;padding:7px 10px}
 .rp-item .rp-m{font-weight:800;color:var(--green);white-space:nowrap}
 .rp-item .rp-f{color:var(--muted)}
@@ -700,6 +712,34 @@ async function rpc(fn,params){if(!sb)return{data:null,error:{message:"Supabase n
 function normalize(data){if(!data)return null;if(Array.isArray(data))return data[0]||null;if(data.data)return Array.isArray(data.data)?data.data[0]:data.data;return data}
 
 // Navegador + SO + si es PWA → se manda en la metadata de la solicitud para que el operador lo vea.
+// ── IP pública de quien manda la solicitud ────────────────────────────────
+// No la sabe el navegador: hay que preguntársela a un servicio de afuera. Se pide UNA vez por
+// sesión y se cachea; si falla o tarda, la solicitud sale igual sin IP — esto nunca puede ser
+// motivo de que una carga no se envíe.
+//
+// Para qué sirve: no da la dirección exacta, pero dice de qué tipo de conexión entra la gente
+// y, sobre todo, permite ver VARIAS CUENTAS DESDE LA MISMA CASA — que es otra forma de agarrar
+// a los que cazan bonos con cuentas distintas.
+//
+// Ojo con leer de más: en una red móvil o en un barrio con CGNAT muchos vecinos comparten la
+// misma IP pública. Coincidir NO prueba que sean la misma persona; es una señal para mirar,
+// no una condena.
+let _ipCache=null, _ipPedida=false;
+async function _ipPublica(){
+  if(_ipCache!==null) return _ipCache;
+  if(_ipPedida) return null;              // ya hay una en vuelo: no encolar otra
+  _ipPedida=true;
+  try{
+    const ctrl=new AbortController();
+    const t=setTimeout(function(){ ctrl.abort(); }, 2500);   // no bloquear el envío
+    const r=await fetch("https://api.ipify.org?format=json",{signal:ctrl.signal});
+    clearTimeout(t);
+    const d=await r.json();
+    _ipCache=String((d&&d.ip)||"")||null;
+  }catch(_e){ _ipCache=null; }
+  return _ipCache;
+}
+
 function _infoNavegador(){
   try{
     const ua=navigator.userAgent||"";
@@ -1121,19 +1161,11 @@ function setPendiente(tipo,solicitudId){
   if(state.solicitudId)localStorage.setItem("bet300_solicitud_id",state.solicitudId);
   localStorage.setItem("bet300_solicitud_started_at",String(state.solicitudStartedAt));
 }
-function limpiarPendienteManual(){
-  const existing=document.getElementById("limpiarConfirm");
-  if(existing){existing.remove();return}
-  const s=$("screenEstado");
-  if(!s)return;
-  s.insertAdjacentHTML("beforeend",`<div id="limpiarConfirm" style="background:rgba(233,194,92,.08);border:1px solid rgba(233,194,92,.25);border-radius:14px;padding:13px;margin-top:14px">
-    <div style="font-size:13px;color:#ffe188;margin-bottom:10px">¿Marcar como resuelta? Hacelo solo si la solicitud ya fue procesada.</div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-      <button class="action-btn secondary-btn" style="margin:0" onclick="document.getElementById('limpiarConfirm').remove()">Cancelar</button>
-      <button class="action-btn" style="margin:0" onclick="_confirmarLimpiarPendiente()">Confirmar</button>
-    </div>
-  </div>`);
-}
+// Se sacó el paso de confirmación: "¿Marcar como resuelta? Hacelo solo si la solicitud ya fue
+// procesada" le pedía a la persona un criterio que no tiene — no sabe si se procesó, por eso
+// está mirando la pantalla de estado. Y el botón que hoy dice "Cancelar solicitud" hace lo que
+// dice: no hay nada que confirmar dos veces.
+function limpiarPendienteManual(){ _confirmarLimpiarPendiente(); }
 function _confirmarLimpiarPendiente(){
   const eraRetiro = String(state.pendingTipo||"").toUpperCase()==="RETIRO";
   stopChatPoll();stopEstadoPoll();
@@ -1142,7 +1174,7 @@ function _confirmarLimpiarPendiente(){
   // El retiro se canceló SIN efectuarse (este botón solo aparece mientras está pendiente/sin pagar)
   // → liberamos el cooldown de 24h para que pueda enviar uno nuevo (dato/monto corregido).
   if(eraRetiro){ try{localStorage.removeItem(_retiroKey());}catch(_e){} }
-  toast(eraRetiro?"Retiro cancelado. Ya podés enviar uno nuevo.":"Estado local limpiado. Ya podés iniciar una nueva solicitud.");
+  toast(eraRetiro?"Retiro cancelado. Ya podés enviar uno nuevo.":"Solicitud cancelada. Ya podés enviar una nueva.");
   goHome();
 }
 
@@ -1277,7 +1309,7 @@ function renderEstado(){
           <button class="action-btn" onclick="goChat()">💬 Abrir chat</button>
           <button class="action-btn secondary-btn" onclick="verEstado()">Actualizar</button>
         </div>
-        <button class="link-btn" style="width:100%;margin-top:4px" onclick="limpiarPendienteManual()">Marcar como resuelta en este dispositivo</button>
+        <button class="link-btn" style="width:100%;margin-top:4px" onclick="_confirmarLimpiarPendiente()">Cancelar solicitud</button>
       </div>
       <div id="histUsuario"></div>`;
     if(solicitudIdValido())consultarEstadoSolicitud(true);
@@ -1414,6 +1446,25 @@ async function cargarProgresoRetiro(){
   const total=Number(prog.total||0), pagado=Number(prog.pagado||0);
   let pct=Number(prog.pct||0); if(pct<0)pct=0; if(pct>100)pct=100;
   if(!(total>0) || !(pagado>0)){ box.innerHTML=""; return; }   // sin parciales aún → sin barra
+
+  // Cierre a mano: el operador terminó la operación aunque quedara plata sin pagar. Sin esto
+  // el portal seguía mostrando "faltan $25.000" para siempre, sin decir que ya había cerrado
+  // ni por qué. La nota es obligatoria del lado del panel, así que siempre hay algo que leer.
+  let cierre=prog.cierre; if(typeof cierre==="string"){ try{cierre=JSON.parse(cierre);}catch(_e){cierre=null;} }
+  if(cierre && (cierre.nota || cierre.etiqueta)){
+    try{ const s2=$("screenEstado"); const h=s2&&s2.querySelector(".estado-h"); if(h)h.textContent="Retiro cerrado";
+         const sub=s2&&s2.querySelector(".estado-sub"); if(sub)sub.textContent="Cobraste "+_money(pagado)+" de "+_money(total); }catch(_e){}
+    box.innerHTML=`<div class="rp-wrap">
+      <div class="rp-top"><span>Cobrado</span><span class="rp-nums">${_money(pagado)} / ${_money(total)}</span></div>
+      <div class="rp-track"><div class="rp-fill" style="width:${pct}%"></div></div>
+      <div class="rp-cierre">
+        <b>Este retiro se cerró.</b>
+        ${cierre.etiqueta?`<div>${esc(cierre.etiqueta)}</div>`:""}
+        ${cierre.nota?`<div class="rp-cierre-nota">"${esc(cierre.nota)}"</div>`:""}
+      </div>
+    </div>`;
+    return;
+  }
   try{
     const k="bet300_retiro_pagado_"+sid, last=Number(localStorage.getItem(k)||0);
     if(pagado>last){ localStorage.setItem(k,String(pagado));
@@ -1464,8 +1515,52 @@ async function iniciarValidacionUsuarioBackground(usuario){
   }catch(e){}
 }
 
+// ╔══════════════════════════════════════════════════════════════════════════╗
+// ║  MODO PRUEBAS · BORRAR ANTES DEL DEPLOY A LOS DOMINIOS DE PRODUCCIÓN      ║
+// ╚══════════════════════════════════════════════════════════════════════════╝
+// Con ?prueba=p1 el portal apunta a la oficina P1 y NO se muda al dominio propio.
+// Sin esto, cualquier copia subida a otro enlace resuelve la ruta, ve que el host de la
+// agencia es otro y hace location.replace() al portal de producción: nunca llegás a probar
+// el tuyo. Ver el bloque "Si llegaron por el dominio genérico" acá abajo.
+// Se activa SOLO con el parámetro en la URL: sin él, el portal se comporta igual que siempre.
+const RUTAS_PRUEBA = { p1:"rt-a8f31", p2:"rt-k6d92", p3:"rt-m4q77", p4:"rt-z9p42",
+                       p5:"rt-x2v61", p6:"rt-r5023", p7:"rt-m2z3r" };
+const MODO_PRUEBA = (function(){
+  try{
+    const v = (new URLSearchParams(location.search).get("prueba")||"").trim().toLowerCase();
+    if(v && RUTAS_PRUEBA[v]) return { oficina:v.toUpperCase(), ruta:RUTAS_PRUEBA[v] };
+    // En una copia de pruebas (GitHub Pages / archivo local) va derecho a P1 sin pedir nada.
+    // El chequeo es por HOST y no puede activarse en produccion: los dominios reales terminan
+    // en portal-bet-300.com, que nunca matchea con esto.
+    const h = String(location.hostname||"").toLowerCase();
+    const esCopiaDePrueba = h.endsWith(".github.io") || h==="localhost" || h==="127.0.0.1" || h==="";
+    if(esCopiaDePrueba) return { oficina:"P1", ruta:RUTAS_PRUEBA.p1 };
+    return null;
+  }catch(_e){ return null; }
+})();
+if(MODO_PRUEBA){
+  try{ localStorage.setItem("bet300_public_code", MODO_PRUEBA.ruta); }catch(_e){}
+  // Un cartel bien visible: que nadie confunda esta copia con la que usan los clientes.
+  document.addEventListener("DOMContentLoaded", function(){
+    const d=document.createElement("div");
+    d.textContent="⚠ PRUEBAS · "+MODO_PRUEBA.oficina;
+    d.style.cssText="position:fixed;left:0;right:0;bottom:0;z-index:99999;background:#b45309;color:#fff;font:700 12px system-ui,sans-serif;text-align:center;padding:6px;letter-spacing:.04em";
+    document.body.appendChild(d);
+  });
+}
+// ── fin del modo pruebas ─────────────────────────────────────────────────
+
 // ── Ruta e inicialización ─────────────────────────────────────────────────
 async function initRoute(){
+  // MODO PRUEBAS (borrar con el bloque de arriba): la oficina la fija el ?prueba=
+  if(MODO_PRUEBA){
+    state.publicCode = MODO_PRUEBA.ruta;
+    const rp = await rpc("landing_resolver_ruta_publica",{p_public_code:state.publicCode});
+    const filaP = rp.error ? null : normalize(rp.data);
+    if(filaP){ state.pcCodigo = filaP.pc_codigo||filaP.pc||filaP.codigo_pc||null; }
+    console.log("[BET300 PRUEBAS]", MODO_PRUEBA.oficina, state.publicCode, "->", state.pcCodigo);
+    return;                       // sin mudanza de dominio: te quedás donde estás
+  }
   // 1) ?r= explícito (compatibilidad vieja / override) → se persiste para la PWA.
   const qp=(new URLSearchParams(location.search).get("r")||"").trim();
   if(qp){ state.publicCode=qp; try{ localStorage.setItem("bet300_public_code", qp); }catch(_e){} }
@@ -1883,8 +1978,21 @@ function validarTitular(valor){
     }
   }
   // Puso su propio usuario de plataforma en vez de su nombre.
-  const u=_normComparar(state.usuario||"");
-  if(u && u.length>=3 && n===u) return "Ese es tu usuario de juego, no el titular. Poné tu nombre y apellido.";
+  // OJO: el saneo ya le sacó los dígitos, así que "juanok12" llega acá como "juanok" y una
+  // comparación exacta contra el usuario NO lo agarraba — se colaba igual. Por eso se compara
+  // también contra el usuario SIN dígitos, y por contención en los dos sentidos: "juanok",
+  // "juanok mp" o "soy juanok" tienen que frenar lo mismo.
+  const _uNorm=_normComparar(state.usuario||"");
+  const _uLetras=String(state.usuario||"").replace(/[^\p{L}]/gu,"").toLowerCase()
+    .normalize("NFD").replace(/[̀-ͯ]/g,"");
+  for(const u of [_uNorm,_uLetras]){
+    if(!u || u.length<3) continue;
+    // n===u: lo puso tal cual · n contiene u: "soy juanok" · u contiene n: escribió una parte.
+    // Los mínimos evitan frenar un nombre real corto (un "Ana" dentro de "anamaria99").
+    if(n===u || (u.length>=4 && n.indexOf(u)>=0) || (n.length>=5 && u.indexOf(n)>=0)){
+      return "Ese es tu usuario de juego, no el titular. Poné el nombre y apellido de la cuenta bancaria.";
+    }
+  }
   return "";
 }
 // Sanea el campo mientras escribe y avisa en el momento si copió algo que no va.
@@ -1936,7 +2044,7 @@ function titularLimpiarParaOtro(){
   const previo=el.value;
   el.value=""; el.classList.remove("prellenado");
   el.dataset.previo=previo;
-  const marca=$("titularMarca"); if(marca) marca.style.display="none";
+  const btn=$("titularCambiar"); if(btn) btn.style.display="none";
   const pie=$("titularPie");
   if(pie){
     pie.innerHTML='Escribí el titular de la cuenta desde la que transferiste. '
@@ -1948,13 +2056,14 @@ function titularRestaurarPrevio(){
   const el=$("cargaTitular"); if(!el) return;
   const previo=String(el.dataset.previo||_titularPrevio()||"");
   if(!previo) return;
-  el.value=previo; el.classList.add("prellenado");
-  const marca=$("titularMarca"); if(marca) marca.style.display="";
+  el.value=previo; el.classList.add("prellenado"); el.classList.remove("falta");
+  const btn=$("titularCambiar"); if(btn) btn.style.display="";
+  _titularAviso(el,"");
   _titularPieGuardado();
 }
 function _titularPieGuardado(){
   const pie=$("titularPie");
-  if(pie) pie.innerHTML='Es el mismo de la vez pasada. Si transferiste desde otra cuenta, tocá el campo y escribí el nombre nuevo.';
+  if(pie) pie.innerHTML='✓ Guardado · es el titular que usaste la vez pasada. Si transferiste desde otra cuenta, tocá <b>Cambiar</b>.';
 }
 
 function renderCarga(){
@@ -1978,8 +2087,9 @@ function renderCarga(){
       <label>¿A nombre de quién está la cuenta que usaste para transferir?</label>
       <div class="titular-wrap">
         <input id="cargaTitular" placeholder="Tu nombre y apellido" autocomplete="name"
-               oninput="onTitularInput(this)" onfocus="if(this.classList.contains('prellenado'))titularLimpiarParaOtro()">
-        <span id="titularMarca" class="titular-marca" style="display:none">✓ Guardado</span>
+               oninput="onTitularInput(this)">
+        <button type="button" id="titularCambiar" class="titular-cambiar" style="display:none"
+                onclick="titularLimpiarParaOtro()">Cambiar</button>
       </div>
       <div id="avisoTitular" class="titular-aviso" style="display:none"></div>
       <div id="titularPie" class="campo-ayuda">El tuyo, no el de la cuenta de arriba.</div>
@@ -1994,7 +2104,7 @@ function renderCarga(){
   const _prev=_titularPrevio(), _elT=$("cargaTitular");
   if(_prev && _elT){
     _elT.value=_prev; _elT.classList.add("prellenado"); _elT.dataset.previo=_prev;
-    const _m=$("titularMarca"); if(_m) _m.style.display="";
+    const _b=$("titularCambiar"); if(_b) _b.style.display="";
     _titularPieGuardado();
   }
 }
@@ -2111,14 +2221,11 @@ async function copyText(t,btn){
   try{await navigator.clipboard.writeText(t);}catch(e){}
   haptic(8);
   btn.classList.add("done"); btn.textContent="✓ Copiado";
-  setTimeout(()=>{btn.classList.remove("done");btn.textContent=btn.dataset.lbl||"Copiar";},1300);
-  // Una vez que copió, la persona se va al banco y vuelve a completar el formulario. Los datos
-  // ya no le hacen falta ocupando media pantalla: la tarjeta se pliega y el formulario sube.
-  // Queda un botón para volver a abrirla, porque a veces se pierde el dato en el camino.
-  try{
-    const card = btn.closest("#billeteraSlot .transfer-card");
-    if(card && !card.classList.contains("plegada")) plegarBilletera(card, true);
-  }catch(_e){}
+  setTimeout(()=>{btn.classList.remove("done");btn.textContent=btn.dataset.lbl||"Copiar";},1600);
+  // NO se pliega la tarjeta al copiar. Antes sí, para dejar lugar al formulario, pero es apurar
+  // a la persona justo en el peor momento: copia el alias, la tarjeta se cierra, y cuando va a
+  // buscar el CBU ya no está. Copiar el alias y copiar el CBU son DOS pasos, y hay que darle
+  // tiempo a los dos. Si quiere ganar lugar, la pliega a mano con "Ocultar datos".
 }
 function plegarBilletera(card, plegar){
   if(!card) return;
@@ -2146,7 +2253,8 @@ async function enviarSolicitudCarga(usuario,monto,titular){
   if(String(titular||"").trim().length<3)return toast("Indicá el titular que transfiere (mínimo 3 letras).");
   limpiarSolicitudAnteriorAntesDeNueva();
   const bp=billeteraPayloadPlano();
-  const payload={usuario,monto:Number(monto),titular,telefono:state.telefono||"",pc_codigo:state.pcCodigo,public_code:state.publicCode,host:location.host,navegador:_infoNavegador(),tipo:"CARGA",...bp};
+  const _ip=await _ipPublica();   // si no llega en 2,5 s va sin ella: nunca frena el envío
+  const payload={usuario,monto:Number(monto),titular,telefono:state.telefono||"",pc_codigo:state.pcCodigo,public_code:state.publicCode,host:location.host,navegador:_infoNavegador(),ip:_ip||"",tipo:"CARGA",...bp};
   const destino=bp.billetera_nombre?`${bp.billetera_nombre}${bp.billetera_alias?" · "+bp.billetera_alias:""}`:null;
   let res=await rpc("landing_portal_v16_crear_solicitud",{p_public_code:state.publicCode,p_usuario:usuario,p_tipo:"CARGA",p_monto:Number(monto),p_titular:titular,p_destino:destino,p_mensaje:"Solicitud de CARGA: $"+monto+" · Titular: "+titular,p_metadata:payload});
   // Rechazo por validación de vínculo → NO usar fallback (sería un bypass). Mandamos a soporte.
@@ -2230,7 +2338,8 @@ async function enviarSolicitudRetiro(){
   if(btn){btn.disabled=true;btn.textContent="Enviando...";}
   limpiarSolicitudAnteriorAntesDeNueva();
   const msg="Solicitud de RETIRO: $"+monto+" · Destino: "+destino+" · Titular: "+titular;
-  const payload={usuario,monto,destino,titular,telefono:state.telefono||"",pc_codigo:state.pcCodigo,public_code:state.publicCode,host:location.host,navegador:_infoNavegador(),tipo:"RETIRO"};
+  const _ipR=await _ipPublica();
+  const payload={usuario,monto,destino,titular,telefono:state.telefono||"",pc_codigo:state.pcCodigo,public_code:state.publicCode,host:location.host,navegador:_infoNavegador(),ip:_ipR||"",tipo:"RETIRO"};
   let res=await rpc("landing_portal_v16_crear_solicitud",{
     p_public_code:state.publicCode,p_usuario:usuario,p_tipo:"RETIRO",
     p_monto:monto,p_titular:titular,p_destino:destino,p_mensaje:msg,p_metadata:payload
