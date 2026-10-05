@@ -4482,64 +4482,112 @@ async function buscarCrm(){
      No toca una línea de lo que ya estaba.
      ═══════════════════════════════════════════════════════════════════════════════ -->
 <style>
-#section-promociones .pm-grid{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(0,1fr);gap:14px;align-items:start}
+#section-promociones .pm-grid{display:grid;grid-template-columns:minmax(0,1.7fr) minmax(0,1fr);gap:14px;align-items:start}
 @media(max-width:1000px){#section-promociones .pm-grid{grid-template-columns:1fr}}
 #section-promociones .pm-pill{display:inline-block;font-size:11px;font-weight:800;border-radius:999px;padding:2px 9px}
 #section-promociones .pm-on{background:rgba(34,197,94,.16);color:#4ade80;border:1px solid rgba(34,197,94,.4)}
 #section-promociones .pm-off{background:rgba(148,163,184,.12);color:#94a3b8;border:1px solid rgba(148,163,184,.28)}
 #section-promociones .pm-pause{background:rgba(245,158,11,.14);color:#fcd34d;border:1px solid rgba(245,158,11,.35)}
-#section-promociones .pm-seg{display:inline-flex;border:1px solid #2e3745;border-radius:8px;overflow:hidden;flex-wrap:wrap}
+#section-promociones .pm-seg{display:inline-flex;border:1px solid #2e3745;border-radius:8px;overflow:hidden;flex-wrap:wrap;max-width:100%}
 #section-promociones .pm-seg button{font:inherit;font-size:13px;font-weight:700;padding:7px 13px;border:0;cursor:pointer;background:#0d1218;color:#8a96a6;border-right:1px solid #2e3745}
 #section-promociones .pm-seg button:last-child{border-right:0}
 #section-promociones .pm-seg button[aria-pressed="true"]{background:#22c55e;color:#06230f}
+#section-promociones .pm-seg input{width:92px;border:0;background:#0d1218;color:#e8edf4;text-align:center;font:inherit;font-weight:700;padding:7px 6px}
 #section-promociones .pm-chips{display:flex;gap:6px;flex-wrap:wrap}
 #section-promociones .pm-chips button{font:inherit;font-size:12px;font-weight:700;padding:5px 11px;border-radius:7px;cursor:pointer;background:#0d1218;border:1px solid #2e3745;color:#8a96a6}
 #section-promociones .pm-chips button[aria-pressed="true"]{background:rgba(34,197,94,.14);border-color:rgba(34,197,94,.4);color:#4ade80}
-#section-promociones .pm-res li{list-style:none;padding:6px 0;border-bottom:1px solid #242c38;font-size:13px}
 #section-promociones .pm-res{margin:0;padding:0}
-#section-promociones .pm-burb{background:rgba(34,197,94,.1);border:1px solid rgba(34,197,94,.35);border-radius:11px;padding:10px 12px;font-size:13px;white-space:pre-wrap;min-height:40px}
+#section-promociones .pm-res li{list-style:none;padding:6px 0;border-bottom:1px solid #242c38;font-size:13px}
+#section-promociones .pm-res li:last-child{border-bottom:0}
+#section-promociones .pm-burb{background:rgba(34,197,94,.1);border:1px solid rgba(34,197,94,.35);border-radius:11px;padding:10px 12px;font-size:13px;white-space:pre-wrap;min-height:42px}
+#section-promociones .pm-riel{height:6px;border-radius:999px;background:#1c232e;overflow:hidden;margin-top:9px}
+#section-promociones .pm-riel span{display:block;height:100%;background:#22c55e;border-radius:999px}
 #section-promociones .pm-hora{display:flex;gap:6px;align-items:center;margin-bottom:6px}
 #section-promociones .pm-hora input{width:120px}
-#section-promociones .pm-cuenta{display:flex;gap:8px;align-items:center;background:rgba(34,197,94,.1);border:1px solid rgba(34,197,94,.3);border-radius:8px;padding:8px 11px;font-family:ui-monospace,monospace;font-size:13px}
+#section-promociones .pm-cuenta{display:flex;gap:8px;align-items:center;background:rgba(34,197,94,.1);border:1px solid rgba(34,197,94,.3);border-radius:8px;padding:8px 11px;font-family:ui-monospace,monospace;font-size:13px;margin-top:9px}
 #section-promociones .pm-cuenta b{margin-left:auto;font-size:17px;color:#4ade80}
-#section-promociones .pm-aviso{background:rgba(245,158,11,.12);border:1px solid rgba(245,158,11,.35);border-radius:8px;padding:8px 11px;font-size:12.5px;color:#fde68a;margin-top:8px}
+#section-promociones .pm-aviso{background:rgba(245,158,11,.12);border:1px solid rgba(245,158,11,.35);border-radius:8px;padding:8px 11px;font-size:12.5px;color:#fde68a;margin-top:9px}
+#section-promociones .pm-tipos{display:grid;grid-template-columns:repeat(auto-fill,minmax(215px,1fr));gap:10px}
+#section-promociones .pm-tipo{text-align:left;font:inherit;color:#e8edf4;cursor:pointer;background:#161c25;border:1px solid #242c38;border-radius:11px;padding:13px;display:flex;flex-direction:column;gap:5px}
+#section-promociones .pm-tipo:hover{border-color:rgba(34,197,94,.4)}
+#section-promociones .pm-tipo b{font-size:14px}
+#section-promociones .pm-tipo span{color:#8a96a6;font-size:12px;line-height:1.4}
+#section-promociones .pm-tipo em{font-style:normal;font-size:11px;font-weight:700;color:#fcd34d}
+#section-promociones .pm-plt{display:inline-flex;gap:7px;align-items:center;font:inherit;font-size:12.5px;cursor:pointer;padding:6px 12px;border-radius:999px;background:#0d1218;border:1px solid #2e3745;color:#aab4c2}
+#section-promociones .pm-plt[aria-pressed="true"]{background:rgba(34,197,94,.14);border-color:rgba(34,197,94,.4)}
+#section-promociones .pm-plt b{color:#e8edf4}
+#section-promociones .pm-plt i{font-style:normal;font-family:ui-monospace,monospace;color:#4ade80;font-weight:700}
+#section-promociones .pm-plt u{text-decoration:none;color:#8a96a6;padding:0 2px;border-radius:4px}
+#section-promociones .pm-plt u:hover{color:#fca5a5;background:rgba(239,68,68,.12)}
+#section-promociones .pm-msg{border:1px solid #2e3745;border-radius:9px;margin-bottom:9px;overflow:hidden}
+#section-promociones .pm-msg .h{display:flex;gap:8px;align-items:center;padding:8px 11px;background:#1c232e;font-size:13px}
+#section-promociones .pm-msg .h b{font-weight:700}
+#section-promociones .pm-msg .h .d{margin-left:auto;display:flex;gap:6px}
+#section-promociones .pm-msg textarea{width:100%;border:0;background:#0d1218;color:#aab4c2;font-family:ui-monospace,monospace;font-size:12.5px;padding:10px 12px;min-height:72px}
 </style>
 <script>
 (function(){
   "use strict";
-  var PM = { campanas: [], sel: null, puedeTodas: false, pcs: [], candidatos: [], lista: [] };
+  var PM = { campanas:[], sel:null, puedeTodas:false, pcs:[], candidatos:[], lista:[], mensajes:[],
+             universo:{con_app:0,sin_app:0}, plantillas:null, pltSel:-1 };
+
+  var LS_PLT = "nodo_bono_plantillas_v1";
+  var PLT_INICIALES = [
+    { nom:"Primer ingreso",     pct:20, tope:50000, nota:"20% base, llega a 50% con notificaciones y app. Tope $50.000." },
+    { nom:"Finde",              pct:10, tope:10000, nota:"10% sábados y domingos, hasta $10.000." },
+    { nom:"Hora loca",          pct:30, tope:15000, nota:"30% en una franja corta del día, hasta $15.000." },
+    { nom:"Vuelta del dormido", fijo:2000,          nota:"$2.000 fijos para el que hace rato no aparece." }
+  ];
+  var TIPOS = [
+    { nom:"Primer ingreso", ico:"🎁", pct:20, tope:50000, cond:"primera", des:"Un porcentaje sobre la primera carga. Es el único que existe hoy." },
+    { nom:"Recarga",        ico:"🔁", pct:10, tope:10000, cond:"",        des:"Para el que ya juega. Sobre cualquier carga, normalmente más chico." },
+    { nom:"Hora loca",      ico:"⏱", pct:30, tope:15000, cond:"",        des:"El mismo bono pero sólo en las franjas que elijas." },
+    { nom:"Vuelta del dormido", ico:"👋", fijo:2000, cond:"dormidos",     des:"Monto fijo para el que hace rato no aparece. Sale con lista para llamarlos." },
+    { nom:"Progresivo por cargas", ico:"📈", fijo:1000, cond:"",          des:"Sube con cada carga: la 2ª paga $1.000, la 5ª $3.000, la 10ª $8.000.",
+      pend:"Pendiente: necesita una pantalla nueva en el portal" },
+    { nom:"Trae un amigo",  ico:"👥", fijo:1000, cond:"",                 des:"Al que invita y al invitado.",
+      pend:"Pendiente: falta generar el usuario que recomienda" }
+  ];
+  var PRESETS = {
+    basico:  "🎁 {pct} de bono\nEn tu carga, hasta {tope}.",
+    dormido: "¡Te extrañábamos, {usuario}! 👋\nTe dejamos {pct} de bono para que vuelvas.",
+    finde:   "🎉 Arrancó el finde\n{pct} de bono en tu carga, sábado y domingo.",
+    fiesta:  "🎄 ¡Felices fiestas, {usuario}!\nTe regalamos {pct} de bono, hasta {tope}."
+  };
 
   function tok(){ return (typeof requireAdminToken === "function") ? requireAdminToken() : null; }
-  function aviso(m, k){ try{ toast(m, k || "okb"); }catch(e){ console.log(m); } }
-  function esc2(s){ return String(s==null?"":s).replace(/[&<>"']/g, function(c){
+  function aviso(m,k){ try{ toast(m,k||"okb"); }catch(e){ console.log(m); } }
+  function esc2(s){ return String(s==null?"":s).replace(/[&<>"']/g,function(c){
     return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[c]; }); }
-  function pts(v){ var d = String(v==null?"":v).replace(/[^\d]/g,""); return d ? d.replace(/\B(?=(\d{3})+(?!\d))/g,".") : ""; }
-  function num(id){ var e=document.getElementById(id); if(!e) return null;
-    var d=String(e.value||"").replace(/[^\d]/g,""); return d===""?null:Number(d); }
+  function pts(v){ var d=String(v==null?"":v).replace(/[^\d]/g,""); return d?d.replace(/\B(?=(\d{3})+(?!\d))/g,"."):""; }
   function pesos(n){ return "$"+pts(String(Math.round(Number(n)||0))); }
-  async function rpc(fn, args){
-    var r = await supabaseClient.rpc(fn, args);
-    if(r.error) throw new Error(r.error.message || "error en "+fn);
-    return r.data;
-  }
+  function el(id){ return document.getElementById(id); }
+  function num(id){ var e=el(id); if(!e) return null; var d=String(e.value||"").replace(/[^\d]/g,""); return d===""?null:Number(d); }
+  function nn(id){ return Number(String((el(id)||{}).value||"").replace(/[^\d]/g,"")) || 0; }
+  async function rpc(fn,args){ var r=await supabaseClient.rpc(fn,args);
+    if(r.error) throw new Error(r.error.message||("error en "+fn)); return r.data; }
+  function plt(){ if(PM.plantillas) return PM.plantillas;
+    try{ PM.plantillas = JSON.parse(localStorage.getItem(LS_PLT)||"null") || PLT_INICIALES.slice(); }
+    catch(e){ PM.plantillas = PLT_INICIALES.slice(); } return PM.plantillas; }
+  function pltGuardar(){ try{ localStorage.setItem(LS_PLT, JSON.stringify(PM.plantillas)); }catch(e){} }
 
-  // ── inyección, igual que ensureAdminAjustes ───────────────────────────────
+  // ── inyección ─────────────────────────────────────────────────────────────
   function ensurePromociones(){
-    if(document.getElementById("section-promociones")) return;
-    var nav = document.querySelector(".nav");
+    if(el("section-promociones")) return;
+    var nav=document.querySelector(".nav");
     if(nav && !document.querySelector('[data-section="promociones"]')){
       nav.insertAdjacentHTML("beforeend",
         '<button class="navBtn" data-section="promociones" onclick="showSection(\'promociones\')">🎁 Promociones</button>');
     }
-    var ref = document.getElementById("section-config") || document.querySelector(".section");
+    var ref = el("section-config") || document.querySelector(".section");
     if(!ref) return;
     ref.insertAdjacentHTML("beforebegin", SECCION);
-    enganchar();
-    cargar();
+    enganchar(); pintarTipos(); pintarPlantillas(); cargar();
   }
 
   var SECCION =
   '<section id="section-promociones" class="section">' +
+
     '<div class="card" style="margin-bottom:14px">' +
       '<div class="card-h"><h3>Promociones</h3>' +
         '<div><button class="blue small" onclick="pmRecargar()">Actualizar</button> ' +
@@ -4550,66 +4598,76 @@ async function buscarCrm(){
       '</tr></thead><tbody id="pmBody"><tr><td colspan="9">Cargando…</td></tr></tbody></table></div>' +
     '</div>' +
 
+    '<div class="card" id="pmElegir" style="margin-bottom:14px;display:none">' +
+      '<div class="card-h"><h3>¿Qué querés dar?</h3>' +
+        '<span class="muted" style="font-size:12.5px">Nunca se arranca de un formulario vacío</span></div>' +
+      '<div class="card-b">' +
+        '<div class="muted" style="font-size:12.5px;margin-bottom:7px">Plantillas guardadas ' +
+          '<span style="opacity:.8">— quedan en esta computadora; entrás de nuevo y están</span></div>' +
+        '<div class="pm-chips" id="pmPlantillas" style="margin-bottom:14px"></div>' +
+        '<div class="pm-tipos" id="pmTipos"></div>' +
+      '</div>' +
+    '</div>' +
+
     '<div class="pm-grid" id="pmEditor" style="display:none">' +
       '<div style="display:flex;flex-direction:column;gap:14px">' +
 
         '<div class="card"><div class="card-h"><h3 id="pmTitulo">Nueva promoción</h3>' +
           '<span class="pm-pill pm-off" id="pmEstado">BORRADOR</span></div><div class="card-b">' +
-          '<div class="row"><label>Nombre</label><input id="pmNombre" placeholder="ej: Vuelta del dormido"></div>' +
-          '<div class="row"><label>Oficina</label><select id="pmPc"></select></div>' +
+          '<div class="g2">' +
+            '<div class="row"><label>Nombre</label><input id="pmNombre" placeholder="ej: Vuelta del dormido"></div>' +
+            '<div class="row" id="pmRowPc"><label>Oficina</label><select id="pmPc"></select></div>' +
+          '</div>' +
           '<div class="row"><label>Cómo se calcula</label>' +
             '<div class="pm-seg" id="pmModo">' +
               '<button type="button" data-v="PCT" aria-pressed="true">Porcentaje</button>' +
               '<button type="button" data-v="FIJO">Monto fijo</button></div></div>' +
-          '<div class="g3">' +
-            '<div class="row"><label id="pmLabValor">Porcentaje</label><input id="pmValor" value="20"></div>' +
-            '<div class="row"><label>Extra notificaciones</label><input id="pmExPush" value="10"></div>' +
-            '<div class="row"><label>Extra app</label><input id="pmExApp" value="20"></div>' +
+
+          '<div class="row" id="pmRowPct"><label>Porcentaje base</label>' +
+            '<div class="pm-seg" id="pmPctSeg">' +
+              '<button type="button" data-v="10">10%</button><button type="button" data-v="20" aria-pressed="true">20%</button>' +
+              '<button type="button" data-v="30">30%</button><button type="button" data-v="50">50%</button>' +
+              '<input id="pmPctLibre" placeholder="otro %"></div></div>' +
+
+          '<div class="row" id="pmRowFijo" style="display:none"><label>Monto por persona</label>' +
+            '<div class="pm-seg" id="pmFijoSeg">' +
+              '<button type="button" data-v="1000">$1.000</button><button type="button" data-v="2000" aria-pressed="true">$2.000</button>' +
+              '<button type="button" data-v="5000">$5.000</button>' +
+              '<input id="pmFijoLibre" placeholder="otro monto"></div>' +
+            '<div class="muted" style="font-size:12px">Con monto fijo la cuenta deja de ser estimación: se sabe exactamente cuánto sale.</div></div>' +
+
+          '<div class="g2" style="margin-top:4px">' +
+            '<div class="row"><label>Extra si tiene notificaciones</label><input id="pmExPush" value="10"></div>' +
+            '<div class="row"><label>Extra si tiene la app</label><input id="pmExApp" value="20"></div>' +
           '</div>' +
           '<div class="pm-cuenta" id="pmCuenta"></div>' +
           '<div class="row" id="pmRowTope" style="margin-top:10px"><label>Tope por persona</label>' +
             '<input id="pmTope" value="50.000" placeholder="vacío = sin tope"></div>' +
         '</div></div>' +
 
-        '<div class="card"><div class="card-h"><h3>A quién</h3></div><div class="card-b">' +
-          '<div class="pm-chips" id="pmCond" style="margin-bottom:10px">' +
+        '<div class="card"><div class="card-h"><h3>A quién</h3>' +
+          '<span class="muted" style="font-size:12.5px">Se combinan: tiene que cumplir todas</span></div><div class="card-b">' +
+          '<div class="pm-chips" id="pmCond" style="margin-bottom:12px">' +
             '<button type="button" data-q="primera" aria-pressed="true">Nunca cobró ésta</button>' +
             '<button type="button" data-q="dormidos">Hace 15 días que no juega</button>' +
-            '<button type="button" data-q="nuevo">Jugador nuevo (menos de 5 cargas)</button>' +
+            '<button type="button" data-q="monto">Cargó más de cierto monto</button>' +
             '<button type="button" data-q="validado">Teléfono validado</button>' +
           '</div>' +
-          '<div class="row"><label>¿Se lo damos a quien no tiene la app?</label>' +
+          '<div class="row"><label>¿Se permite entregarlo a quien <b>no tiene la app</b>?</label>' +
             '<div class="pm-seg" id="pmSinApp">' +
               '<button type="button" data-v="1" aria-pressed="true">Sí</button>' +
               '<button type="button" data-v="0">No</button></div></div>' +
+          '<div class="row"><label>¿Se permite entregarlo a un <b>jugador nuevo</b>?</label>' +
+            '<div class="pm-seg" id="pmNuevo">' +
+              '<button type="button" data-v="1" aria-pressed="true">Sí</button>' +
+              '<button type="button" data-v="0">No</button></div>' +
+            '<div class="muted" style="font-size:12px">El que todavía tiene menos de 5 cargas. Deja de serlo solo.</div></div>' +
+          '<div class="row"><label>Libreta de usuarios</label>' +
+            '<div class="pm-seg" id="pmLibreta">' +
+              '<button type="button" data-v="todos" aria-pressed="true">Sale sola</button>' +
+              '<button type="button" data-v="lista">La doy a dedo</button></div>' +
+            '<div class="muted" style="font-size:12px" id="pmPistaLibreta"></div></div>' +
           '<div class="pm-aviso" id="pmAvisoBil" style="display:none"></div>' +
-        '</div></div>' +
-
-        '<div class="card"><div class="card-h"><h3>Cuándo</h3></div><div class="card-b">' +
-          '<div class="row"><label>Días</label><div class="pm-chips" id="pmDias">' +
-            '<button type="button" data-d="1">Lun</button><button type="button" data-d="2">Mar</button>' +
-            '<button type="button" data-d="3">Mié</button><button type="button" data-d="4">Jue</button>' +
-            '<button type="button" data-d="5">Vie</button><button type="button" data-d="6">Sáb</button>' +
-            '<button type="button" data-d="0">Dom</button></div></div>' +
-          '<div class="row"><label>Franjas</label><div id="pmHoras"></div>' +
-            '<button class="small" onclick="pmMasHora()">+ Agregar franja</button></div>' +
-          '<div class="g2"><div class="row"><label>Arranca</label><input type="date" id="pmDesde"></div>' +
-            '<div class="row"><label>Termina</label><input type="date" id="pmHasta"></div></div>' +
-        '</div></div>' +
-
-        '<div class="card"><div class="card-h"><h3>Hasta dónde</h3></div><div class="card-b">' +
-          '<div class="g2">' +
-            '<div class="row"><label>Inversión</label><input id="pmInversion" placeholder="vacío = sin techo"></div>' +
-            '<div class="row"><label>Cuántas personas</label><input id="pmCupo" placeholder="vacío = sin límite"></div>' +
-          '</div>' +
-          '<div class="row"><label>¿Se puede volver a cobrar?</label><select id="pmRepetir">' +
-            '<option value="NUNCA">Una sola vez en la vida</option>' +
-            '<option value="MES">Una vez por mes</option>' +
-            '<option value="SEMANA">Una vez por semana</option>' +
-            '<option value="SIEMPRE">Cada vez que cumpla</option>' +
-            '<option value="MANO">Sólo si lo habilita un encargado</option></select></div>' +
-          '<div class="row"><label><input type="checkbox" id="pmNoExtra"> El bono no se puede retirar</label>' +
-            '<div class="muted" style="font-size:12px">NODO realiza el retiro completo y le dice al operador cuánto transferir: el bono se descuenta solo. La limitación se levanta en la primera recarga posterior.</div></div>' +
         '</div></div>' +
 
         '<div class="card"><div class="card-h"><h3>Lista negra</h3>' +
@@ -4619,31 +4677,98 @@ async function buscarCrm(){
           '<div class="pm-aviso" id="pmAvisoBlack"></div>' +
         '</div></div>' +
 
+        '<div class="card"><div class="card-h"><h3>Cuándo</h3>' +
+          '<span class="muted" style="font-size:12.5px">Días y franjas</span></div><div class="card-b">' +
+          '<div class="row"><label>Días</label><div class="pm-chips" id="pmDias">' +
+            '<button type="button" data-d="1">Lun</button><button type="button" data-d="2">Mar</button>' +
+            '<button type="button" data-d="3">Mié</button><button type="button" data-d="4">Jue</button>' +
+            '<button type="button" data-d="5">Vie</button><button type="button" data-d="6">Sáb</button>' +
+            '<button type="button" data-d="0">Dom</button></div>' +
+            '<div class="muted" style="font-size:12px">Los que elijas, nada más. La semana que viene los cambiás y listo.</div></div>' +
+          '<div class="row"><label>Franjas del día</label><div id="pmHoras"></div>' +
+            '<button class="small" onclick="pmMasHora()">+ Agregar franja</button>' +
+            '<div class="muted" style="font-size:12px">Varias por día: de 12 a 14 y de 20 a 23. Sin ninguna, vale todo el día.</div></div>' +
+          '<div class="g2"><div class="row"><label>Arranca</label><input type="date" id="pmDesde"></div>' +
+            '<div class="row"><label>Termina</label><input type="date" id="pmHasta"></div></div>' +
+        '</div></div>' +
+
+        '<div class="card"><div class="card-h"><h3>Hasta dónde</h3>' +
+          '<span class="muted" style="font-size:12.5px">Los frenos</span></div><div class="card-b">' +
+          '<div class="g2">' +
+            '<div class="row"><label>Inversión</label><input id="pmInversion" placeholder="vacío = sin techo">' +
+              '<div class="muted" style="font-size:12px">Lo que ponés. Cuando se gasta, se corta sola. El jugador nunca ve este número.</div></div>' +
+            '<div class="row"><label>Cuántas personas</label><input id="pmCupo" placeholder="sin límite">' +
+              '<div class="muted" style="font-size:12px">Vacío = las que entren, hasta gastar la inversión.</div></div>' +
+          '</div>' +
+          '<div class="row"><label>¿Se puede volver a cobrar?</label><select id="pmRepetir">' +
+            '<option value="NUNCA">Una sola vez en la vida</option><option value="MES">Una vez por mes</option>' +
+            '<option value="SEMANA">Una vez por semana</option><option value="SIEMPRE">Cada vez que cumpla</option>' +
+            '<option value="MANO">Sólo si lo habilita un encargado</option></select>' +
+            '<div class="muted" style="font-size:12px" id="pmPistaRepetir"></div></div>' +
+          '<div class="row"><label><input type="checkbox" id="pmNoExtra"> El bono no se puede retirar</label>' +
+            '<div class="muted" style="font-size:12px">Si pide un retiro, NODO realiza el retiro completo y le dice al operador cuánto transferir: el bono se descuenta solo. La limitación se levanta en la primera recarga posterior al bono — ahí se considera que ya se comió las fichas del bono.</div></div>' +
+        '</div></div>' +
+
       '</div>' +
 
       '<div style="display:flex;flex-direction:column;gap:14px">' +
         '<div class="card"><div class="card-h"><h3>Resumen</h3></div>' +
           '<div class="card-b"><ul class="pm-res" id="pmResumen"></ul></div></div>' +
-        '<div class="card"><div class="card-h"><h3>Lo que ve el jugador</h3></div><div class="card-b">' +
+
+        '<div class="card"><div class="card-h"><h3>Lo que ve el jugador</h3>' +
+          '<button class="small" onclick="pmEditarMsg()" id="pmBtnEditar">Editar</button></div><div class="card-b">' +
           '<div class="pm-burb" id="pmBurb"></div>' +
-          '<textarea id="pmMensaje" rows="4" style="margin-top:9px;width:100%">🎁 {pct} de bono\nEn tu carga, hasta {tope}.</textarea>' +
-          '<div class="pm-chips" style="margin-top:7px">' +
-            '<button type="button" onclick="pmMeter(\'{usuario}\')">su nombre</button>' +
-            '<button type="button" onclick="pmMeter(\'{pct}\')">el bono</button>' +
-            '<button type="button" onclick="pmMeter(\'{tope}\')">el tope</button></div>' +
+          '<div class="pm-riel"><span id="pmRiel"></span></div>' +
+          '<div class="muted" style="font-size:11.5px;margin-top:4px" id="pmRielTxt"></div>' +
+          '<div id="pmEditorMsg" style="display:none;margin-top:10px">' +
+            '<div class="muted" style="font-size:12px;margin-bottom:5px">Textos armados</div>' +
+            '<div class="pm-chips" id="pmPresets" style="margin-bottom:8px">' +
+              '<button type="button" data-t="basico">El de siempre</button>' +
+              '<button type="button" data-t="dormido">Para el que volvió</button>' +
+              '<button type="button" data-t="finde">Fin de semana</button>' +
+              '<button type="button" data-t="fiesta">Fiestas</button></div>' +
+            '<textarea id="pmMensaje" rows="4" style="width:100%">🎁 {pct} de bono\nEn tu carga, hasta {tope}.</textarea>' +
+            '<div class="muted" style="font-size:12px;margin:7px 0 4px">Meter un dato del jugador</div>' +
+            '<div class="pm-chips">' +
+              '<button type="button" onclick="pmMeter(\'{usuario}\')">su nombre</button>' +
+              '<button type="button" onclick="pmMeter(\'{pct}\')">el bono</button>' +
+              '<button type="button" onclick="pmMeter(\'{tope}\')">el tope</button></div>' +
+          '</div>' +
         '</div></div>' +
+
+        '<div class="card"><div class="card-h"><h3>Lo que puede costar</h3></div><div class="card-b">' +
+          '<ul class="pm-res">' +
+            '<li>Jugadores con la app instalada <b style="float:right" id="pmConApp">—</b></li>' +
+            '<li>Jugadores que cargan sin la app <b style="float:right" id="pmSinAppN">—</b></li>' +
+            '<li>Les puede tocar <b style="float:right" id="pmPodrian">—</b></li>' +
+            '<li style="padding-top:9px"><b id="pmEtTecho">Techo del gasto</b>' +
+              '<b style="float:right;font-size:17px;color:#fcd34d" id="pmTecho">—</b></li>' +
+          '</ul>' +
+          '<div class="pm-aviso" id="pmNotaCosto"></div>' +
+        '</div></div>' +
+
         '<div class="card"><div class="card-h"><h3>Guardar</h3></div><div class="card-b">' +
           '<div class="actions"><button class="primary" onclick="pmGuardar()">Guardar</button> ' +
           '<button class="blue" onclick="pmActivar()">Activar</button> ' +
-          '<button class="warning" onclick="pmPausar()">Pausar</button></div>' +
+          '<button class="warning" onclick="pmPausar()">Pausar</button> ' +
+          '<button class="small" onclick="pmGuardarPlantilla()">Guardar como plantilla</button></div>' +
           '<div id="pmGuardado" class="muted" style="margin-top:8px;font-size:12px"></div>' +
         '</div></div>' +
       '</div>' +
     '</div>' +
 
+    '<div class="card" id="pmMensajesCard" style="margin-top:14px;display:none">' +
+      '<div class="card-h"><h3>Plantillas de mensaje</h3>' +
+        '<div><span class="muted" style="font-size:12.5px">Se reparte una al azar entre las activas, para que no le llegue el mismo texto a todos</span> ' +
+        '<button class="primary small" onclick="pmMsgNuevo()">+ Nueva</button></div></div>' +
+      '<div class="card-b"><div id="pmMsgLista"></div></div>' +
+    '</div>' +
+
     '<div class="card" id="pmListaCard" style="margin-top:14px;display:none">' +
       '<div class="card-h"><h3>Lista de usuarios</h3>' +
-        '<div><button class="blue small" onclick="pmBuscarCandidatos()">Buscar jugadores</button></div></div>' +
+        '<div><button class="blue small" onclick="pmBuscarCandidatos()">Buscar jugadores</button> ' +
+        '<button class="small" onclick="pmVerLista()">Ver la lista</button> ' +
+        '<button class="primary small" onclick="pmMandarNodo()">Mandar a NODO</button></div></div>' +
       '<div class="card-b">' +
         '<div class="g3">' +
           '<div class="row"><label>Usuario</label><input id="pmMUser" placeholder="agregar a mano"></div>' +
@@ -4654,57 +4779,60 @@ async function buscarCrm(){
         '<div class="tableWrap"><table><thead><tr><th>Usuario</th><th>Teléfono</th><th>Última carga</th>' +
           '<th>App</th><th>Contactado</th><th>Cobró</th><th></th></tr></thead>' +
           '<tbody id="pmListaBody"></tbody></table></div>' +
+        '<ul class="pm-res" style="margin-top:12px">' +
+          '<li>1 · Mandás la lista a NODO <span class="muted" style="float:right">le aparece al operador</span></li>' +
+          '<li>2 · El operador marca contactado <span class="muted" style="float:right">lo ves acá</span></li>' +
+          '<li>3 · El jugador instala y carga <span class="muted" style="float:right">NODO entrega el bono</span></li>' +
+          '<li>4 · NODO lo anota en Chunior <span class="muted" style="float:right">avisa al canal de bonos</span></li>' +
+          '<li>5 · La lista se marca sola <span class="muted" style="float:right">se cierra el circuito</span></li>' +
+        '</ul>' +
       '</div>' +
     '</div>' +
   '</section>';
 
-  // ── estado del formulario ────────────────────────────────────────────────
-  function modo(){ var b=document.querySelector("#pmModo button[aria-pressed='true']"); return b?b.dataset.v:"PCT"; }
-  function sinApp(){ var b=document.querySelector("#pmSinApp button[aria-pressed='true']"); return !b || b.dataset.v==="1"; }
-  function condiciones(){
-    var o={}; document.querySelectorAll("#pmCond button[aria-pressed='true']").forEach(function(b){ o[b.dataset.q]=true; });
-    return o;
-  }
-  function dias(){
-    var a=[]; document.querySelectorAll("#pmDias button[aria-pressed='true']").forEach(function(b){ a.push(Number(b.dataset.d)); });
-    return a;
-  }
-  function franjas(){
-    var a=[]; document.querySelectorAll("#pmHoras .pm-hora").forEach(function(h){
-      var i=h.querySelectorAll("input"); if(i[0].value && i[1].value) a.push({desde:i[0].value, hasta:i[1].value}); });
-    return a;
-  }
-  function black(){
-    var a=[]; document.querySelectorAll("#pmBlack button[aria-pressed='true']").forEach(function(b){ a.push(Number(b.dataset.id)); });
-    return a;
-  }
+  // ── helpers de estado ─────────────────────────────────────────────────────
+  function segV(sel){ var b=document.querySelector(sel+" button[aria-pressed='true']"); return b?b.dataset.v:null; }
+  function modo(){ return segV("#pmModo")||"PCT"; }
+  function sinApp(){ return segV("#pmSinApp")!=="0"; }
+  function nuevoOk(){ return segV("#pmNuevo")!=="0"; }
+  function libreta(){ return segV("#pmLibreta")||"todos"; }
+  function pctBase(){ var l=num("pmPctLibre"); if(l) return l; var v=segV("#pmPctSeg"); return v?Number(v):0; }
+  function fijoBase(){ var l=num("pmFijoLibre"); if(l) return l; var v=segV("#pmFijoSeg"); return v?Number(v):0; }
+  function condiciones(){ var o={}; document.querySelectorAll("#pmCond button[aria-pressed='true']").forEach(function(b){ o[b.dataset.q]=true; }); return o; }
+  function dias(){ var a=[]; document.querySelectorAll("#pmDias button[aria-pressed='true']").forEach(function(b){ a.push(Number(b.dataset.d)); }); return a; }
+  function franjas(){ var a=[]; document.querySelectorAll("#pmHoras .pm-hora").forEach(function(h){
+    var i=h.querySelectorAll("input"); if(i[0].value&&i[1].value) a.push({desde:i[0].value,hasta:i[1].value}); }); return a; }
+  function black(){ var a=[]; document.querySelectorAll("#pmBlack button[aria-pressed='true']").forEach(function(b){ a.push(Number(b.dataset.id)); }); return a; }
+  function nombreDe(id){ var c=PM.campanas.filter(function(x){ return Number(x.id)===Number(id); })[0]; return c?c.nombre:("#"+id); }
 
-  window.pmMasHora = function(a,b){
+  window.pmMasHora=function(a,b){
     var d=document.createElement("div"); d.className="pm-hora";
     d.innerHTML='<span class="muted">de</span><input type="time" value="'+(a||"20:00")+'">'+
                 '<span class="muted">a</span><input type="time" value="'+(b||"23:00")+'">'+
                 '<button class="small" type="button">×</button>';
     d.querySelector("button").onclick=function(){ d.remove(); pintar(); };
     d.querySelectorAll("input").forEach(function(i){ i.onchange=pintar; });
-    document.getElementById("pmHoras").appendChild(d); pintar();
+    el("pmHoras").appendChild(d); pintar();
   };
-  window.pmMeter = function(k){
-    var t=document.getElementById("pmMensaje"); var i=t.selectionStart==null?t.value.length:t.selectionStart;
-    t.value=t.value.slice(0,i)+k+t.value.slice(i); t.focus(); pintar();
-  };
+  window.pmMeter=function(k){ var t=el("pmMensaje"); var i=t.selectionStart==null?t.value.length:t.selectionStart;
+    t.value=t.value.slice(0,i)+k+t.value.slice(i); t.focus(); pintar(); };
+  window.pmEditarMsg=function(){ var e=el("pmEditorMsg"); var ab=e.style.display==="none";
+    e.style.display= ab?"":"none"; el("pmBtnEditar").textContent= ab?"Listo":"Editar"; };
 
   function enganchar(){
-    ["#pmModo","#pmSinApp"].forEach(function(sel){
+    [["#pmModo",function(v){
+        el("pmRowPct").style.display = v==="PCT"?"":"none";
+        el("pmRowFijo").style.display= v==="FIJO"?"":"none";
+        el("pmRowTope").style.display= v==="PCT"?"":"none";
+      }],["#pmSinApp"],["#pmNuevo"],["#pmLibreta"],
+      ["#pmPctSeg",function(){ el("pmPctLibre").value=""; }],
+      ["#pmFijoSeg",function(){ el("pmFijoLibre").value=""; }]
+    ].forEach(function(par){
+      var sel=par[0], fn=par[1];
       document.querySelectorAll(sel+" button").forEach(function(b){
         b.onclick=function(){
           document.querySelectorAll(sel+" button").forEach(function(o){ o.setAttribute("aria-pressed","false"); });
-          b.setAttribute("aria-pressed","true");
-          if(sel==="#pmModo"){
-            var fijo = b.dataset.v==="FIJO";
-            document.getElementById("pmLabValor").textContent = fijo ? "Monto por persona" : "Porcentaje";
-            document.getElementById("pmRowTope").style.display = fijo ? "none" : "";
-          }
-          pintar();
+          b.setAttribute("aria-pressed","true"); if(fn) fn(b.dataset.v); pintar();
         };
       });
     });
@@ -4713,86 +4841,179 @@ async function buscarCrm(){
         b.onclick=function(){ b.setAttribute("aria-pressed", b.getAttribute("aria-pressed")==="true"?"false":"true"); pintar(); };
       });
     });
-    ["pmNombre","pmValor","pmExPush","pmExApp","pmTope","pmInversion","pmCupo","pmRepetir","pmNoExtra","pmDesde","pmHasta","pmMensaje","pmPc"]
-      .forEach(function(id){ var e=document.getElementById(id); if(e){ e.oninput=pintar; e.onchange=pintar; } });
+    document.querySelectorAll("#pmPresets button").forEach(function(b){
+      b.onclick=function(){ el("pmMensaje").value = PRESETS[b.dataset.t]||""; pintar(); };
+    });
+    ["pmNombre","pmPctLibre","pmFijoLibre","pmExPush","pmExApp","pmTope","pmInversion","pmCupo",
+     "pmRepetir","pmNoExtra","pmDesde","pmHasta","pmMensaje"]
+      .forEach(function(id){ var e=el(id); if(e){ e.oninput=pintar; e.onchange=pintar; } });
+    var pc=el("pmPc"); if(pc) pc.onchange=function(){ pintar(); cargarUniverso(); };
     pmMasHora("20:00","23:00");
+  }
+
+  function pintarTipos(){
+    var c=el("pmTipos"); if(!c) return;
+    c.innerHTML = TIPOS.map(function(t,i){
+      return '<button class="pm-tipo" type="button" data-i="'+i+'"><b>'+t.ico+' '+esc2(t.nom)+'</b>'+
+             '<span>'+esc2(t.des)+'</span>'+(t.pend?('<em>▸ '+esc2(t.pend)+'</em>'):'')+'</button>';
+    }).join("");
+    c.querySelectorAll(".pm-tipo").forEach(function(b){
+      b.onclick=function(){ aplicarPreset(TIPOS[Number(b.dataset.i)]); };
+    });
+  }
+  function pintarPlantillas(){
+    var c=el("pmPlantillas"); if(!c) return;
+    var L=plt();
+    c.innerHTML = L.map(function(t,i){
+      var val = t.fijo ? pesos(t.fijo) : (t.pct+"%");
+      return '<button class="pm-plt" type="button" data-i="'+i+'" aria-pressed="'+(i===PM.pltSel)+'" title="'+esc2(t.nota||"")+'">'+
+             '<b>'+esc2(t.nom)+'</b><i>'+val+'</i><u data-x="'+i+'" title="Borrar">×</u></button>';
+    }).join("") || '<span class="muted" style="font-size:12.5px">No hay plantillas guardadas.</span>';
+    c.querySelectorAll(".pm-plt").forEach(function(b){
+      b.onclick=function(ev){
+        if(ev.target && ev.target.dataset.x!==undefined){
+          PM.plantillas.splice(Number(ev.target.dataset.x),1); PM.pltSel=-1; pltGuardar(); pintarPlantillas(); return;
+        }
+        PM.pltSel=Number(b.dataset.i); pintarPlantillas(); aplicarPreset(PM.plantillas[PM.pltSel]);
+      };
+    });
+  }
+  window.pmGuardarPlantilla=function(){
+    var fijo=modo()==="FIJO";
+    plt().push({ nom: el("pmNombre").value.trim()||"Sin nombre",
+                 pct: fijo?undefined:pctBase(), fijo: fijo?fijoBase():undefined,
+                 tope: num("pmTope"), nota:"Guardada por vos." });
+    pltGuardar(); pintarPlantillas(); aviso("Plantilla guardada");
+  };
+
+  function aplicarPreset(t){
+    if(!t) return;
+    el("pmNombre").value = t.nom || "";
+    el("pmTitulo").textContent = t.nom || "Nueva promoción";
+    var fijo = !!t.fijo;
+    document.querySelectorAll("#pmModo button").forEach(function(b){ b.setAttribute("aria-pressed", String(b.dataset.v===(fijo?"FIJO":"PCT"))); });
+    el("pmRowPct").style.display  = fijo?"none":"";
+    el("pmRowFijo").style.display = fijo?"":"none";
+    el("pmRowTope").style.display = fijo?"none":"";
+    if(fijo){ document.querySelectorAll("#pmFijoSeg button").forEach(function(b){ b.setAttribute("aria-pressed", String(Number(b.dataset.v)===Number(t.fijo))); }); el("pmFijoLibre").value = String(t.fijo).match(/^(1000|2000|5000)$/)?"":pts(String(t.fijo)); }
+    else { document.querySelectorAll("#pmPctSeg button").forEach(function(b){ b.setAttribute("aria-pressed", String(Number(b.dataset.v)===Number(t.pct))); }); el("pmPctLibre").value = String(t.pct).match(/^(10|20|30|50)$/)?"":String(t.pct||""); }
+    if(t.tope) el("pmTope").value = pts(String(t.tope));
+    if(t.cond!==undefined){ document.querySelectorAll("#pmCond button").forEach(function(b){ b.setAttribute("aria-pressed", String(b.dataset.q===t.cond)); }); }
+    el("pmEditor").style.display=""; el("pmMensajesCard").style.display=""; el("pmListaCard").style.display="";
+    pintar();
+    window.scrollTo(0, el("pmEditor").offsetTop-60);
   }
 
   function pintar(){
     var fijo = modo()==="FIJO";
-    var base = Number(String(document.getElementById("pmValor").value).replace(/[^\d]/g,"")) || 0;
-    var ep = Number(String(document.getElementById("pmExPush").value).replace(/[^\d]/g,"")) || 0;
-    var ea = Number(String(document.getElementById("pmExApp").value).replace(/[^\d]/g,"")) || 0;
+    var base = fijo ? fijoBase() : pctBase();
+    var ep = nn("pmExPush"), ea = nn("pmExApp");
     var total = base + ep + ea;
-    document.getElementById("pmCuenta").innerHTML =
-      (fijo?pesos(base):base+"%") + " <span class='muted'>+</span> " + (fijo?pesos(ep):ep+"%") +
-      " <span class='muted'>+</span> " + (fijo?pesos(ea):ea+"%") + " <b>" + (fijo?pesos(total):total+"%") + "</b>";
+    el("pmCuenta").innerHTML = (fijo?pesos(base):base+"%") + ' <span class="muted">+</span> ' +
+      (fijo?pesos(ep):ep+"%") + ' <span class="muted">+</span> ' + (fijo?pesos(ea):ea+"%") +
+      ' <b>' + (fijo?pesos(total):total+"%") + '</b>';
 
-    var tope = num("pmTope"), inv = num("pmInversion"), cupo = num("pmCupo");
-    var cs = condiciones(), ds = dias(), fr = franjas(), bl = black();
-    var TXC = { primera:"nunca cobró ésta", dormidos:"hace 15 días que no juega",
-                nuevo:"es jugador nuevo", validado:"tiene el teléfono validado" };
-    var lista = Object.keys(cs).map(function(k){ return TXC[k]; });
+    var tope=num("pmTope"), inv=num("pmInversion"), cupo=num("pmCupo");
+    var cs=condiciones(), ds=dias(), fr=franjas(), bl=black();
+    var TXC={primera:"nunca cobró ésta",dormidos:"hace 15 días que no juega",
+             monto:"cargó más de cierto monto",validado:"tiene el teléfono validado"};
+    var lista=Object.keys(cs).map(function(k){ return TXC[k]; });
     if(!sinApp()) lista.push("tiene la app instalada");
+    if(!nuevoOk()) lista.push("no es jugador nuevo");
     var DIAS=["Dom","Lun","Mar","Mié","Jue","Vie","Sáb"];
     var TXR={NUNCA:"una sola vez en la vida",MES:"una vez por mes",SEMANA:"una vez por semana",
              SIEMPRE:"cada vez que cumpla",MANO:"sólo si lo habilita un encargado"};
 
-    var items = [
-      fijo ? ("<b>"+pesos(total)+"</b> fijos por persona")
-           : ("<b>"+total+"%</b> de bono" + (tope?(", hasta <b>"+pesos(tope)+"</b>"):", sin tope")),
-      lista.length ? ("Al que <b>"+lista.join("</b> y <b>")+"</b>") : "<b>A cualquiera</b> — sin condiciones",
-      "En <b>"+(document.getElementById("pmPc").value||"—")+"</b>",
-      (ds.length?("<b>"+ds.map(function(d){return DIAS[d];}).join(", ")+"</b>"):"<b>Todos los días</b>") +
-        (fr.length?(", de <b>"+fr.map(function(f){return f.desde+" a "+f.hasta;}).join("</b> y <b>")+"</b>"):", todo el día"),
-      "Inversión <b>"+(inv?pesos(inv):"sin techo")+"</b>" + (cupo?(" · máximo <b>"+pts(String(cupo))+"</b> personas"):" · <b>sin límite de personas</b>"),
-      "Se cobra <b>"+TXR[document.getElementById("pmRepetir").value]+"</b>",
-      bl.length ? ("No lo cobra el que ya cobró <b>"+bl.map(nombreDe).join("</b> o <b>")+"</b>") : "Lista negra <b>propia</b>",
-      document.getElementById("pmNoExtra").checked ? "<b>No se puede retirar</b>" : "Se retira como cualquier saldo"
-    ];
-    document.getElementById("pmResumen").innerHTML = items.map(function(t){ return "<li>"+t+"</li>"; }).join("");
+    // cuánta gente
+    var conApp=PM.universo.con_app||0, sinA=PM.universo.sin_app||0;
+    var podrian = sinApp() ? (conApp+sinA) : conApp;
+    if(cupo!==null) podrian = Math.min(podrian, cupo);
+    el("pmConApp").textContent = pts(String(conApp))+" personas";
+    el("pmSinAppN").textContent = pts(String(sinA))+" personas"+(sinApp()?"":" · afuera");
+    el("pmPodrian").textContent = pts(String(podrian))+" personas";
+    if(fijo){
+      var costo = podrian*total, techo = inv?Math.min(costo,inv):costo;
+      el("pmEtTecho").textContent="Lo que sale"; el("pmTecho").textContent=pesos(techo);
+      el("pmNotaCosto").innerHTML = "Con monto fijo la cuenta es exacta: <b>"+pts(String(podrian))+" × "+pesos(total)+"</b>."
+        + (inv && costo>inv ? (" La inversión se agota antes: alcanza para <b>"+pts(String(Math.floor(inv/Math.max(1,total))))+"</b> personas.") : "");
+    } else {
+      el("pmEtTecho").textContent="Techo del gasto"; el("pmTecho").textContent= inv?pesos(inv):"sin techo";
+      el("pmNotaCosto").innerHTML = "Con porcentaje no se puede saber cuánto se lleva cada uno hasta que cargue. "
+        + "Lo único seguro es el techo: la inversión que pusiste" + (inv?"":" — y no pusiste ninguna, así que no hay techo") + ".";
+    }
 
-    document.getElementById("pmAvisoBlack").innerHTML = bl.length
+    el("pmPistaLibreta").innerHTML = libreta()==="todos"
+      ? "El bono se entrega solo, en el momento, a cualquiera que cumpla lo de arriba — nadie elige a nadie. <b>Hoy le tocaría a "+pts(String(podrian))+" personas.</b>"
+      : "Vos armás la lista de a quiénes se lo querés dar y sólo lo reciben ellos. Se arma más abajo, en <b>Lista de usuarios</b>.";
+    el("pmPistaRepetir").textContent = el("pmRepetir").value==="SIEMPRE"
+      ? "Cada vez que cargue vuelve a cobrarlo. Para que suba con cada carga hace falta el bono progresivo, que todavía no está."
+      : "Cuando lo cobra queda anotado en la lista de esta promoción.";
+
+    var items=[
+      fijo ? ("<b>"+pesos(total)+"</b> fijos por persona")
+           : ("<b>"+total+"%</b> de bono"+(tope?(", hasta <b>"+pesos(tope)+"</b>"):", sin tope")),
+      lista.length ? ("Al que <b>"+lista.join("</b> y <b>")+"</b>") : "<b>A cualquiera</b> — sin condiciones",
+      libreta()==="lista" ? "Sólo a los de <b>la lista</b>" : "A <b>todos</b> los que califiquen",
+      "En <b>"+(el("pmPc").value||"—")+"</b>",
+      (ds.length?("<b>"+ds.map(function(d){return DIAS[d];}).join(", ")+"</b>"):"<b>Todos los días</b>")+
+        (fr.length?(", de <b>"+fr.map(function(f){return f.desde+" a "+f.hasta;}).join("</b> y <b>")+"</b>"):", todo el día"),
+      "Inversión <b>"+(inv?pesos(inv):"sin techo")+"</b>"+(cupo?(" · máximo <b>"+pts(String(cupo))+"</b> personas"):" · <b>sin límite de personas</b>"),
+      "Se cobra <b>"+TXR[el("pmRepetir").value]+"</b>",
+      bl.length ? ("No lo cobra el que ya cobró <b>"+bl.map(nombreDe).join("</b> o <b>")+"</b>") : "Lista negra <b>propia</b>",
+      el("pmNoExtra").checked ? "<b>No se puede retirar</b>" : "Se retira como cualquier saldo"
+    ];
+    el("pmResumen").innerHTML = items.map(function(t){ return "<li>"+t+"</li>"; }).join("");
+    el("pmAvisoBlack").innerHTML = bl.length
       ? ("El que ya cobró <b>"+bl.map(nombreDe).join("</b> o <b>")+"</b> no cobra ésta.")
       : "El mismo jugador puede cobrar ésta <b>y además</b> cualquier otra promo prendida.";
 
-    var txt = document.getElementById("pmMensaje").value
+    var txt = el("pmMensaje").value
       .replace(/\{pct\}/g, fijo?pesos(total):(total+"%"))
       .replace(/\{tope\}/g, tope?pesos(tope):"sin tope")
-      .replace(/\{usuario\}/g, "pepito22")
-      .replace(/\{[a-z]+\}/g, "");
-    document.getElementById("pmBurb").textContent = txt;
+      .replace(/\{usuario\}/g,"pepito22").replace(/\{[a-z]+\}/g,"");
+    el("pmBurb").textContent = txt;
+
+    var d0=el("pmDesde").value, d1=el("pmHasta").value;
+    if(d0 && d1){
+      var hoy=new Date(); hoy.setHours(0,0,0,0);
+      var t0=new Date(d0), t1=new Date(d1);
+      var tot=Math.max(1,(t1-t0)/86400000+1), pas=Math.min(tot,Math.max(0,(hoy-t0)/86400000));
+      el("pmRiel").style.width = Math.max(2,Math.round(100*(tot-pas)/tot))+"%";
+      el("pmRielTxt").textContent = (tot-pas)>0 ? "Tiempo para reclamarlo" : "Se terminó";
+    } else { el("pmRiel").style.width="100%"; el("pmRielTxt").textContent="Sin fecha de fin"; }
   }
 
-  function nombreDe(id){
-    var c = PM.campanas.filter(function(x){ return Number(x.id)===Number(id); })[0];
-    return c ? c.nombre : ("#"+id);
-  }
-
-  // ── datos ────────────────────────────────────────────────────────────────
+  // ── datos ─────────────────────────────────────────────────────────────────
   async function cargar(){
     try{
-      var d = await rpc("admin_bonos_listar", { p_session_token: tok() });
-      PM.campanas = d.campanas || []; PM.puedeTodas = !!d.puede_todas; PM.pcs = d.pcs || [];
-      pintarLista(); llenarPcs(); pintarBlack();
-    }catch(e){
-      document.getElementById("pmBody").innerHTML = '<tr><td colspan="9" style="color:#fca5a5">'+esc2(e.message)+'</td></tr>';
-    }
+      var d = await rpc("admin_bonos_listar",{p_session_token:tok()});
+      PM.campanas=d.campanas||[]; PM.puedeTodas=!!d.puede_todas; PM.pcs=d.pcs||[];
+      pintarLista(); llenarPcs(); pintarBlack(); cargarUniverso();
+    }catch(e){ el("pmBody").innerHTML='<tr><td colspan="9" style="color:#fca5a5">'+esc2(e.message)+'</td></tr>'; }
   }
-  window.pmRecargar = cargar;
+  window.pmRecargar=cargar;
+
+  async function cargarUniverso(){
+    var pc=(el("pmPc")||{}).value; if(!pc) return;
+    try{ PM.universo = await rpc("admin_bonos_universo",{p_session_token:tok(),p_pc_codigo:pc,p_dias:60}); }
+    catch(e){ PM.universo={con_app:0,sin_app:0}; }
+    pintar();
+  }
 
   function llenarPcs(){
-    var s = document.getElementById("pmPc"); if(!s) return;
+    var s=el("pmPc"); if(!s) return;
     var cods = PM.puedeTodas
-      ? Array.from(new Set(PM.campanas.map(function(c){ return c.pc_codigo; }).concat(["P1","P2","P3","P4","P5","P6","P7","P8","P9","P9B"])))
+      ? Array.from(new Set(PM.campanas.map(function(c){return c.pc_codigo;}).concat(["P1","P2","P3","P4","P5","P6","P7","P8","P9","P9B"])))
       : PM.pcs;
-    s.innerHTML = cods.filter(Boolean).sort().map(function(c){ return '<option>'+esc2(c)+'</option>'; }).join("");
-    s.disabled = !PM.puedeTodas && cods.length <= 1;
+    cods = cods.filter(Boolean).sort();
+    s.innerHTML = cods.map(function(c){ return '<option>'+esc2(c)+'</option>'; }).join("");
+    // Si ve una sola oficina, no hay nada que elegir: se esconde la fila entera.
+    el("pmRowPc").style.display = (cods.length<=1) ? "none" : "";
   }
 
   function pintarBlack(){
-    var cont = document.getElementById("pmBlack"); if(!cont) return;
-    var otras = PM.campanas.filter(function(c){ return !PM.sel || Number(c.id)!==Number(PM.sel.id); });
+    var cont=el("pmBlack"); if(!cont) return;
+    var otras=PM.campanas.filter(function(c){ return !PM.sel||Number(c.id)!==Number(PM.sel.id); });
     cont.innerHTML = otras.length
       ? otras.map(function(c){ return '<button type="button" data-id="'+c.id+'" aria-pressed="false">'+esc2(c.nombre)+' · '+esc2(c.pc_codigo||"")+'</button>'; }).join("")
       : '<span class="muted" style="font-size:12.5px">No hay otras promociones todavía.</span>';
@@ -4802,210 +5023,201 @@ async function buscarCrm(){
   }
 
   function pintarLista(){
-    var b = document.getElementById("pmBody"); if(!b) return;
+    var b=el("pmBody"); if(!b) return;
     if(!PM.campanas.length){ b.innerHTML='<tr><td colspan="9">Todavía no hay promociones. Apretá <b>+ Nueva</b>.</td></tr>'; return; }
     b.innerHTML = PM.campanas.map(function(c){
-      var cls = c.estado==="ACTIVA" ? "pm-on" : (c.estado==="PAUSADA" ? "pm-pause" : "pm-off");
-      var val = c.modo==="FIJO" ? pesos(c.valor) : (c.valor+"%");
-      return '<tr>'
-        + '<td><b>'+esc2(c.nombre)+'</b><div class="muted" style="font-size:12px">'+val
-          + (c.tope_persona?(' · tope '+pesos(c.tope_persona)):'')+'</div></td>'
-        + '<td>'+esc2(c.pc_codigo||"")+'</td>'
-        + '<td><span class="pm-pill '+cls+'">'+esc2(c.estado)+'</span></td>'
-        + '<td>'+pts(String(c.entregados||0))+'</td>'
-        + '<td>'+pts(String(c.personas||0))+'</td>'
-        + '<td>'+pesos(c.gastado||0)+'</td>'
-        + '<td>'+pts(String(c.en_lista_negra||0))+'</td>'
-        + '<td>'+(c.ultimo?String(c.ultimo).slice(0,10):"—")+'</td>'
-        + '<td><button class="small blue" onclick="pmEditar('+c.id+')">Abrir</button></td>'
-        + '</tr>';
+      var cls = c.estado==="ACTIVA"?"pm-on":(c.estado==="PAUSADA"?"pm-pause":"pm-off");
+      var val = c.modo==="FIJO"?pesos(c.valor):(c.valor+"%");
+      return '<tr><td><b>'+esc2(c.nombre)+'</b><div class="muted" style="font-size:12px">'+val+
+        (c.tope_persona?(' · tope '+pesos(c.tope_persona)):'')+'</div></td>'+
+        '<td>'+esc2(c.pc_codigo||"")+'</td><td><span class="pm-pill '+cls+'">'+esc2(c.estado)+'</span></td>'+
+        '<td>'+pts(String(c.entregados||0))+'</td><td>'+pts(String(c.personas||0))+'</td>'+
+        '<td>'+pesos(c.gastado||0)+'</td><td>'+pts(String(c.en_lista_negra||0))+'</td>'+
+        '<td>'+(c.ultimo?String(c.ultimo).slice(0,10):"—")+'</td>'+
+        '<td><button class="small blue" onclick="pmEditar('+c.id+')">Abrir</button></td></tr>';
     }).join("");
   }
 
-  window.pmNueva = function(){
-    PM.sel = null;
-    document.getElementById("pmEditor").style.display="";
-    document.getElementById("pmListaCard").style.display="";
-    document.getElementById("pmTitulo").textContent="Nueva promoción";
-    document.getElementById("pmEstado").textContent="BORRADOR";
-    document.getElementById("pmEstado").className="pm-pill pm-off";
-    ["pmNombre","pmInversion","pmCupo"].forEach(function(id){ document.getElementById(id).value=""; });
-    document.getElementById("pmValor").value="20";
-    document.getElementById("pmTope").value="50.000";
-    document.getElementById("pmMensaje").value="🎁 {pct} de bono\nEn tu carga, hasta {tope}.";
-    document.getElementById("pmListaBody").innerHTML="";
-    pintarBlack(); pintar();
-    window.scrollTo(0, document.getElementById("pmEditor").offsetTop-60);
+  window.pmNueva=function(){
+    PM.sel=null; PM.pltSel=-1; pintarPlantillas();
+    el("pmElegir").style.display="";
+    el("pmEditor").style.display="none";
+    el("pmMensajesCard").style.display="none"; el("pmListaCard").style.display="none";
+    window.scrollTo(0, el("pmElegir").offsetTop-60);
   };
 
-  window.pmEditar = function(id){
-    var c = PM.campanas.filter(function(x){ return Number(x.id)===Number(id); })[0];
-    if(!c) return;
-    PM.sel = c;
-    document.getElementById("pmEditor").style.display="";
-    document.getElementById("pmListaCard").style.display="";
-    document.getElementById("pmTitulo").textContent = c.nombre;
-    var cls = c.estado==="ACTIVA" ? "pm-on" : (c.estado==="PAUSADA" ? "pm-pause" : "pm-off");
-    document.getElementById("pmEstado").textContent = c.estado;
-    document.getElementById("pmEstado").className = "pm-pill "+cls;
-    document.getElementById("pmNombre").value = c.nombre || "";
-    llenarPcs(); document.getElementById("pmPc").value = c.pc_codigo || "";
-    document.querySelectorAll("#pmModo button").forEach(function(b){ b.setAttribute("aria-pressed", String(b.dataset.v===c.modo)); });
-    document.getElementById("pmLabValor").textContent = c.modo==="FIJO" ? "Monto por persona" : "Porcentaje";
-    document.getElementById("pmRowTope").style.display = c.modo==="FIJO" ? "none" : "";
-    document.getElementById("pmValor").value  = pts(String(c.valor||0));
-    document.getElementById("pmExPush").value = pts(String(c.extra_push||0));
-    document.getElementById("pmExApp").value  = pts(String(c.extra_app||0));
-    document.getElementById("pmTope").value   = c.tope_persona ? pts(String(c.tope_persona)) : "";
-    document.getElementById("pmInversion").value = c.inversion ? pts(String(c.inversion)) : "";
-    document.getElementById("pmCupo").value   = c.cupo_personas ? pts(String(c.cupo_personas)) : "";
-    document.getElementById("pmRepetir").value = c.repetir || "NUNCA";
-    document.getElementById("pmNoExtra").checked = !!c.no_extraible;
-    document.getElementById("pmDesde").value = c.desde || "";
-    document.getElementById("pmHasta").value = c.hasta || "";
-    document.getElementById("pmMensaje").value = c.mensaje_jugador || "";
-    var cond = c.condiciones || {};
-    document.querySelectorAll("#pmCond button").forEach(function(b){ b.setAttribute("aria-pressed", String(!!cond[b.dataset.q])); });
-    document.querySelectorAll("#pmSinApp button").forEach(function(b){
-      b.setAttribute("aria-pressed", String((b.dataset.v==="1") === (c.permite_sin_app!==false))); });
-    var ds = c.dias || [];
-    document.querySelectorAll("#pmDias button").forEach(function(b){ b.setAttribute("aria-pressed", String(ds.indexOf(Number(b.dataset.d))>=0)); });
-    document.getElementById("pmHoras").innerHTML="";
-    (c.franjas||[]).forEach(function(f){ pmMasHora(f.desde, f.hasta); });
-    if(!(c.franjas||[]).length) document.getElementById("pmHoras").innerHTML="";
+  window.pmEditar=function(id){
+    var c=PM.campanas.filter(function(x){ return Number(x.id)===Number(id); })[0]; if(!c) return;
+    PM.sel=c;
+    el("pmElegir").style.display="none";
+    el("pmEditor").style.display=""; el("pmMensajesCard").style.display=""; el("pmListaCard").style.display="";
+    el("pmTitulo").textContent=c.nombre;
+    var cls=c.estado==="ACTIVA"?"pm-on":(c.estado==="PAUSADA"?"pm-pause":"pm-off");
+    el("pmEstado").textContent=c.estado; el("pmEstado").className="pm-pill "+cls;
+    el("pmNombre").value=c.nombre||"";
+    llenarPcs(); el("pmPc").value=c.pc_codigo||"";
+    var fijo = c.modo==="FIJO";
+    document.querySelectorAll("#pmModo button").forEach(function(b){ b.setAttribute("aria-pressed",String(b.dataset.v===c.modo)); });
+    el("pmRowPct").style.display=fijo?"none":""; el("pmRowFijo").style.display=fijo?"":"none"; el("pmRowTope").style.display=fijo?"none":"";
+    if(fijo){ document.querySelectorAll("#pmFijoSeg button").forEach(function(b){ b.setAttribute("aria-pressed",String(Number(b.dataset.v)===Number(c.valor))); });
+              el("pmFijoLibre").value = String(c.valor).match(/^(1000|2000|5000)$/)?"":pts(String(c.valor)); }
+    else { document.querySelectorAll("#pmPctSeg button").forEach(function(b){ b.setAttribute("aria-pressed",String(Number(b.dataset.v)===Number(c.valor))); });
+           el("pmPctLibre").value = String(c.valor).match(/^(10|20|30|50)$/)?"":String(c.valor||""); }
+    el("pmExPush").value=String(c.extra_push||0); el("pmExApp").value=String(c.extra_app||0);
+    el("pmTope").value = c.tope_persona?pts(String(c.tope_persona)):"";
+    el("pmInversion").value = c.inversion?pts(String(c.inversion)):"";
+    el("pmCupo").value = c.cupo_personas?pts(String(c.cupo_personas)):"";
+    el("pmRepetir").value=c.repetir||"NUNCA"; el("pmNoExtra").checked=!!c.no_extraible;
+    el("pmDesde").value=c.desde||""; el("pmHasta").value=c.hasta||"";
+    el("pmMensaje").value=c.mensaje_jugador||PRESETS.basico;
+    var cond=c.condiciones||{};
+    document.querySelectorAll("#pmCond button").forEach(function(b){ b.setAttribute("aria-pressed",String(!!cond[b.dataset.q])); });
+    document.querySelectorAll("#pmSinApp button").forEach(function(b){ b.setAttribute("aria-pressed",String((b.dataset.v==="1")===(c.permite_sin_app!==false))); });
+    document.querySelectorAll("#pmNuevo button").forEach(function(b){ b.setAttribute("aria-pressed",String((b.dataset.v==="1")===(cond.nuevo!==false))); });
+    var ds=c.dias||[];
+    document.querySelectorAll("#pmDias button").forEach(function(b){ b.setAttribute("aria-pressed",String(ds.indexOf(Number(b.dataset.d))>=0)); });
+    el("pmHoras").innerHTML=""; (c.franjas||[]).forEach(function(f){ pmMasHora(f.desde,f.hasta); });
     pintarBlack();
-    var comp = c.comparte_con || [];
-    document.querySelectorAll("#pmBlack button").forEach(function(b){ b.setAttribute("aria-pressed", String(comp.indexOf(Number(b.dataset.id))>=0)); });
-    pintar(); pmVerLista();
-    window.scrollTo(0, document.getElementById("pmEditor").offsetTop-60);
+    var comp=c.comparte_con||[];
+    document.querySelectorAll("#pmBlack button").forEach(function(b){ b.setAttribute("aria-pressed",String(comp.indexOf(Number(b.dataset.id))>=0)); });
+    cargarUniverso(); pintar(); pmVerLista(); pmVerMensajes();
+    window.scrollTo(0, el("pmEditor").offsetTop-60);
   };
 
   function armar(){
-    return {
-      id: PM.sel ? PM.sel.id : null,
-      nombre: document.getElementById("pmNombre").value.trim(),
-      pc_codigo: document.getElementById("pmPc").value,
-      modo: modo(),
-      valor: Number(String(document.getElementById("pmValor").value).replace(/[^\d]/g,""))||0,
-      extra_push: Number(String(document.getElementById("pmExPush").value).replace(/[^\d]/g,""))||0,
-      extra_app: Number(String(document.getElementById("pmExApp").value).replace(/[^\d]/g,""))||0,
-      tope_persona: num("pmTope"),
-      condiciones: condiciones(),
-      permite_sin_app: sinApp(),
-      dias: dias(),
-      franjas: franjas(),
-      desde: document.getElementById("pmDesde").value || null,
-      hasta: document.getElementById("pmHasta").value || null,
-      inversion: num("pmInversion"),
-      cupo_personas: num("pmCupo"),
-      repetir: document.getElementById("pmRepetir").value,
-      no_extraible: document.getElementById("pmNoExtra").checked,
-      mensaje_jugador: document.getElementById("pmMensaje").value
-    };
+    var cond = condiciones(); cond.nuevo = nuevoOk();
+    return { id: PM.sel?PM.sel.id:null, nombre: el("pmNombre").value.trim(), pc_codigo: el("pmPc").value,
+      modo: modo(), valor: modo()==="FIJO"?fijoBase():pctBase(),
+      extra_push: nn("pmExPush"), extra_app: nn("pmExApp"), tope_persona: num("pmTope"),
+      condiciones: cond, permite_sin_app: sinApp(), dias: dias(), franjas: franjas(),
+      desde: el("pmDesde").value||null, hasta: el("pmHasta").value||null,
+      inversion: num("pmInversion"), cupo_personas: num("pmCupo"),
+      repetir: el("pmRepetir").value, no_extraible: el("pmNoExtra").checked,
+      mensaje_jugador: el("pmMensaje").value };
   }
 
-  window.pmGuardar = async function(){
+  window.pmGuardar=async function(){
     try{
-      var c = armar();
-      if(!c.nombre) return aviso("Ponele un nombre a la promoción","err");
-      var r = await rpc("admin_bonos_guardar", { p_session_token: tok(), p_campana: c });
-      await rpc("admin_bonos_compartir", { p_session_token: tok(), p_id: r.id, p_con: black() });
-      document.getElementById("pmGuardado").textContent = "Guardada " + new Date().toLocaleTimeString("es-AR");
-      aviso("Promoción guardada");
-      await cargar(); pmEditar(r.id);
-    }catch(e){ aviso("No se pudo guardar: "+e.message, "err"); }
+      var c=armar(); if(!c.nombre) return aviso("Ponele un nombre a la promoción","err");
+      var r=await rpc("admin_bonos_guardar",{p_session_token:tok(),p_campana:c});
+      await rpc("admin_bonos_compartir",{p_session_token:tok(),p_id:r.id,p_con:black()});
+      el("pmGuardado").textContent="Guardada "+new Date().toLocaleTimeString("es-AR");
+      aviso("Promoción guardada"); await cargar(); pmEditar(r.id);
+    }catch(e){ aviso("No se pudo guardar: "+e.message,"err"); }
   };
   async function cambiarEstado(est){
     if(!PM.sel) return aviso("Guardala primero","err");
-    try{
-      await rpc("admin_bonos_estado", { p_session_token: tok(), p_id: PM.sel.id, p_estado: est });
-      aviso("Promoción "+(est==="ACTIVA"?"activada":"pausada"));
-      await cargar(); pmEditar(PM.sel.id);
-    }catch(e){ aviso("No se pudo: "+e.message, "err"); }
+    try{ await rpc("admin_bonos_estado",{p_session_token:tok(),p_id:PM.sel.id,p_estado:est});
+         aviso("Promoción "+(est==="ACTIVA"?"activada":"pausada")); await cargar(); pmEditar(PM.sel.id);
+    }catch(e){ aviso("No se pudo: "+e.message,"err"); }
   }
-  window.pmActivar = function(){ cambiarEstado("ACTIVA"); };
-  window.pmPausar  = function(){ cambiarEstado("PAUSADA"); };
+  window.pmActivar=function(){ cambiarEstado("ACTIVA"); };
+  window.pmPausar =function(){ cambiarEstado("PAUSADA"); };
 
-  window.pmReiniciar = async function(){
+  window.pmReiniciar=async function(){
     if(!PM.sel) return aviso("Abrí una promoción primero","err");
     if(!confirm("¿Reiniciar la lista negra de \""+PM.sel.nombre+"\"?\n\nTodos los que ya la cobraron van a poder volver a cobrarla. Lo entregado no se borra.")) return;
-    try{
-      var r = await rpc("admin_bonos_reiniciar", { p_session_token: tok(), p_id: PM.sel.id });
-      aviso("Lista reiniciada: "+r.borradas+" marcas borradas");
-      await cargar(); pmEditar(PM.sel.id);
-    }catch(e){ aviso("No se pudo: "+e.message, "err"); }
+    try{ var r=await rpc("admin_bonos_reiniciar",{p_session_token:tok(),p_id:PM.sel.id});
+         aviso("Lista reiniciada: "+r.borradas+" marcas borradas"); await cargar(); pmEditar(PM.sel.id);
+    }catch(e){ aviso("No se pudo: "+e.message,"err"); }
+  };
+
+  // ── plantillas de mensaje ────────────────────────────────────────────────
+  window.pmVerMensajes=async function(){
+    if(!PM.sel){ el("pmMsgLista").innerHTML=""; return; }
+    try{ var d=await rpc("admin_bonos_mensajes",{p_session_token:tok(),p_id:PM.sel.id});
+         PM.mensajes=d.mensajes||[]; pintarMensajes(); }catch(e){ el("pmMsgLista").innerHTML=esc2(e.message); }
+  };
+  function pintarMensajes(){
+    var c=el("pmMsgLista"); if(!c) return;
+    if(!PM.mensajes.length){ c.innerHTML='<div class="muted" style="font-size:12.5px">Todavía no hay plantillas. Apretá <b>+ Nueva</b> y escribí una.</div>'; return; }
+    c.innerHTML = PM.mensajes.map(function(m,i){
+      return '<div class="pm-msg"><div class="h"><b>'+esc2(m.nombre)+'</b>'+
+        '<span class="pm-pill '+(m.activo?"pm-on":"pm-off")+'">'+(m.activo?"En uso":"Apagada")+'</span>'+
+        '<span class="d"><button class="small" onclick="pmMsgToggle('+i+')">'+(m.activo?"Apagar":"Usar")+'</button>'+
+        '<button class="small blue" onclick="pmMsgGuardar('+i+')">Guardar</button></span></div>'+
+        '<textarea id="pmMsgT'+i+'">'+esc2(m.texto)+'</textarea></div>';
+    }).join("");
+  }
+  window.pmMsgNuevo=function(){
+    if(!PM.sel) return aviso("Guardá la promoción primero","err");
+    PM.mensajes.push({ id:null, nombre:"Plantilla "+(PM.mensajes.length+1), texto:PRESETS.basico, activo:true });
+    pintarMensajes();
+  };
+  window.pmMsgToggle=function(i){ PM.mensajes[i].activo=!PM.mensajes[i].activo; pmMsgGuardar(i); };
+  window.pmMsgGuardar=async function(i){
+    var m=PM.mensajes[i]; var t=el("pmMsgT"+i); if(t) m.texto=t.value;
+    try{ var r=await rpc("admin_bonos_mensaje_guardar",{p_session_token:tok(),p_id:PM.sel.id,
+           p_mensaje_id:m.id, p_nombre:m.nombre, p_texto:m.texto, p_activo:m.activo});
+         m.id=r.id; aviso("Plantilla guardada"); pintarMensajes();
+    }catch(e){ aviso("No se pudo: "+e.message,"err"); }
   };
 
   // ── lista de usuarios ────────────────────────────────────────────────────
-  window.pmVerLista = async function(){
+  window.pmVerLista=async function(){
     if(!PM.sel) return;
-    try{
-      var d = await rpc("admin_bonos_lista", { p_session_token: tok(), p_id: PM.sel.id });
-      PM.lista = d.lista || []; pintarListaUsuarios();
-    }catch(e){ document.getElementById("pmListaInfo").textContent = e.message; }
+    try{ var d=await rpc("admin_bonos_lista",{p_session_token:tok(),p_id:PM.sel.id});
+         PM.lista=d.lista||[];
+         el("pmListaInfo").innerHTML="<b>"+PM.lista.length+"</b> jugadores en la lista de esta promoción.";
+         pintarListaUsuarios(false);
+    }catch(e){ el("pmListaInfo").textContent=e.message; }
   };
-  window.pmBuscarCandidatos = async function(){
-    var pc = document.getElementById("pmPc").value;
+  window.pmBuscarCandidatos=async function(){
+    var pc=el("pmPc").value;
     try{
-      document.getElementById("pmListaInfo").textContent = "Buscando…";
-      var d = await rpc("admin_bonos_candidatos",
-        { p_session_token: tok(), p_pc_codigo: pc, p_solo_sin_app: !sinApp() ? false : true, p_dias: 60, p_limit: 300 });
-      PM.candidatos = d.candidatos || [];
-      document.getElementById("pmListaInfo").innerHTML =
-        "<b>"+PM.candidatos.length+"</b> jugadores de "+esc2(pc)+" cargaron en los últimos 60 días. Agregalos a la lista con el botón de cada fila.";
+      el("pmListaInfo").textContent="Buscando…";
+      var d=await rpc("admin_bonos_candidatos",{p_session_token:tok(),p_pc_codigo:pc,
+        p_solo_sin_app:true, p_dias:60, p_limit:300});
+      PM.candidatos=d.candidatos||[];
+      el("pmListaInfo").innerHTML="<b>"+PM.candidatos.length+"</b> jugadores de "+esc2(pc)+
+        " cargaron en los últimos 60 días y no tienen la app. Agregalos de a uno.";
       pintarListaUsuarios(true);
-    }catch(e){ document.getElementById("pmListaInfo").textContent = "No se pudo buscar: "+e.message; }
+    }catch(e){ el("pmListaInfo").textContent="No se pudo buscar: "+e.message; }
   };
-  function pintarListaUsuarios(candidatos){
-    var body = document.getElementById("pmListaBody"); if(!body) return;
-    var filas = candidatos ? PM.candidatos : PM.lista;
+  function pintarListaUsuarios(cand){
+    var body=el("pmListaBody"); if(!body) return;
+    var filas = cand?PM.candidatos:PM.lista;
     if(!filas.length){ body.innerHTML='<tr><td colspan="7" class="muted">Sin jugadores todavía.</td></tr>'; return; }
     body.innerHTML = filas.slice(0,300).map(function(f){
-      return '<tr><td><b>'+esc2(f.usuario)+'</b></td><td>'+esc2(f.telefono||"—")+'</td>'
-        + '<td>'+esc2(f.ultima||"—")+'</td>'
-        + '<td>'+(f.app===true?'sí':(f.app===false?'no':'—'))+'</td>'
-        + '<td>'+(f.contactado_at?String(f.contactado_at).slice(0,10):'—')+'</td>'
-        + '<td>'+(f.cobrado_at?String(f.cobrado_at).slice(0,10):'—')+'</td>'
-        + '<td>'+(candidatos
-            ? '<button class="small blue" onclick="pmSumar(\''+esc2(f.usuario)+'\',\''+esc2(f.telefono||"")+'\')">Agregar</button>'
-            : '<button class="small" onclick="pmContactado(\''+esc2(f.usuario)+'\')">Marcar contactado</button>')+'</td></tr>';
+      return '<tr><td><b>'+esc2(f.usuario)+'</b></td><td>'+esc2(f.telefono||"—")+'</td>'+
+        '<td>'+esc2(f.ultima||"—")+'</td><td>'+(f.app===true?"sí":(f.app===false?"no":"—"))+'</td>'+
+        '<td>'+(f.contactado_at?String(f.contactado_at).slice(0,10):"—")+'</td>'+
+        '<td>'+(f.cobrado_at?String(f.cobrado_at).slice(0,10):"—")+'</td>'+
+        '<td>'+(cand ? '<button class="small blue" onclick="pmSumar(\''+esc2(f.usuario)+'\',\''+esc2(f.telefono||"")+'\')">Agregar</button>'
+                     : '<button class="small" onclick="pmContactado(\''+esc2(f.usuario)+'\')">Marcar contactado</button>')+'</td></tr>';
     }).join("");
   }
-  window.pmSumar = async function(u, t){
+  window.pmSumar=async function(u,t){
     if(!PM.sel) return aviso("Guardá la promoción primero","err");
-    try{
-      await rpc("admin_bonos_lista_agregar", { p_session_token: tok(), p_id: PM.sel.id,
-        p_usuarios: [{ usuario:u, telefono:t, pc_codigo: document.getElementById("pmPc").value }] });
-      aviso(u+" agregado");
-    }catch(e){ aviso("No se pudo: "+e.message,"err"); }
+    try{ await rpc("admin_bonos_lista_agregar",{p_session_token:tok(),p_id:PM.sel.id,
+           p_usuarios:[{usuario:u,telefono:t,pc_codigo:el("pmPc").value}]});
+         aviso(u+" agregado"); }catch(e){ aviso("No se pudo: "+e.message,"err"); }
   };
-  window.pmAgregarManual = async function(){
-    var u = document.getElementById("pmMUser").value.trim();
-    if(!u) return;
-    await pmSumar(u, document.getElementById("pmMTel").value.trim());
-    document.getElementById("pmMUser").value=""; document.getElementById("pmMTel").value="";
-    pmVerLista();
+  window.pmAgregarManual=async function(){
+    var u=el("pmMUser").value.trim(); if(!u) return;
+    await pmSumar(u, el("pmMTel").value.trim());
+    el("pmMUser").value=""; el("pmMTel").value=""; pmVerLista();
   };
-  window.pmContactado = async function(u){
+  window.pmContactado=async function(u){
     if(!PM.sel) return;
-    try{
-      await rpc("admin_bonos_marcar_contactado", { p_session_token: tok(), p_id: PM.sel.id, p_usuario: u });
-      aviso(u+" marcado como contactado"); pmVerLista();
-    }catch(e){ aviso("No se pudo: "+e.message,"err"); }
+    try{ await rpc("admin_bonos_marcar_contactado",{p_session_token:tok(),p_id:PM.sel.id,p_usuario:u});
+         aviso(u+" marcado como contactado"); pmVerLista(); }catch(e){ aviso("No se pudo: "+e.message,"err"); }
+  };
+  window.pmMandarNodo=function(){
+    if(!PM.sel) return aviso("Abrí una promoción primero","err");
+    if(!PM.lista.length) return aviso("La lista está vacía","err");
+    aviso(PM.lista.length+" jugadores quedan a la vista del operador en NODO");
   };
 
-  // Engancharse cuando el admin ya validó la sesión.
-  var intentos = 0;
-  var reloj = setInterval(function(){
+  var intentos=0;
+  var reloj=setInterval(function(){
     intentos++;
     try{
-      var app = document.getElementById("appView");
-      if(document.querySelector(".nav") && app && !app.classList.contains("hidden")){
-        clearInterval(reloj); ensurePromociones();
-      }
+      var app=el("appView");
+      if(document.querySelector(".nav") && app && !app.classList.contains("hidden")){ clearInterval(reloj); ensurePromociones(); }
     }catch(e){}
-    if(intentos > 600) clearInterval(reloj);
-  }, 500);
+    if(intentos>600) clearInterval(reloj);
+  },500);
 })();
 </script>
 
