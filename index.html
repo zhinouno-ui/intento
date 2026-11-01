@@ -519,7 +519,7 @@ const PLATFORM_URL = "https://bet-300.pw";
 // Sello de versión a la vista. Sin esto no hay forma de saber si lo que se abrió es el portal
 // nuevo o la copia vieja que guardó el service worker en el teléfono. Se cambia a mano en cada
 // publicación, junto con la versión del sw.js.
-const PORTAL_VER="v2.1.8 · 01/11";
+const PORTAL_VER="v2.1.9 · 01/11";
 let sb=null;try{if(SUPABASE_ANON_KEY&&!SUPABASE_ANON_KEY.includes("PEGAR_"))sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY)}catch(e){console.warn(e)}
 
 const state={
@@ -1063,8 +1063,10 @@ function portalChatUsarRuta(route){
   if(portalChatRuta!==route&&(portalChatRuta==='beta'||route==='beta')){
     // Cambio de representación: descartar sólo globos remotos, conservar la guía
     // y reconstruir desde la respuesta autorizada. No unir copias por su texto.
-    for(const node of portalChatGlobos.values())node.remove();
-    portalChatGlobos=new Map();state.misGlobos=new Map();
+    // Los que ya tienen número del servidor son el mismo mensaje por cualquier ruta: se quedan en su
+    // lugar. Si se borraban, reaparecían abajo de la respuesta del asistente.
+    for(const [key,node] of portalChatGlobos)if(!key.includes('|m:')){node.remove();portalChatGlobos.delete(key);}
+    state.misGlobos=new Map();
     state.seenMsgIds=new Set();state._threadRendered=new Set();state.shownTexts=new Set();state._opMsgSeen=new Set();
     portalChatInicializado=false;portalChatCursor=null;
     const button=$('chatEarlier');if(button)button.remove();
@@ -3374,7 +3376,7 @@ async function sendFreeMessage(){
 //  · Cada lista tiene una sola salida a una persona y una sola vuelta atrás.
 //  · Las opciones van abajo del último globo y al tocarlas desaparecen: lo elegido queda escrito.
 const GUIA_VERSION=2,GUIA_CLAVE="bet300_guia_v2";
-const GUIA_VIGENCIA_MS=12*60*60*1000,GUIA_PERSONA_AVISADA_MS=30*60*1000,GUIA_RECIENTE_MS=24*60*60*1000;
+const GUIA_VIGENCIA_MS=12*60*60*1000,GUIA_PERSONA_AVISADA_MS=30*60*1000,GUIA_RECIENTE_MS=24*60*60*1000,GUIA_REPETIR_PEDIDO_MS=5*60*1000;
 const GUIA_SALUDO="<b>Hola 👋 Te atiende el asistente de BET300.</b><br>Es automático y contesta al toque. Resuelvo cargas, retiros y acceso a tu cuenta.<br>Si querés una persona, tenés el botón abajo de todo.";
 // Lo que lee el operador. Está elegido a propósito: el bot del servidor (soporte_auto_mensaje_v1)
 // contesta solo si ve «rechaz», «no me llegó», «ya transferí», «no puedo entrar»… y se metería
@@ -3439,7 +3441,7 @@ function guiaIdentidadActual(){return {ruta:state.publicCode||"",usuario:String(
 function guiaGuardar(){
   const g=guiaActual;if(!g)return;
   g.usuario=guiaIdentidadActual().usuario;g.updatedAt=Date.now();
-  try{sessionStorage.setItem(GUIA_CLAVE,JSON.stringify({version:GUIA_VERSION,ruta:g.ruta,usuario:g.usuario,nodo:g.nodo,tema:g.tema,burbujas:g.burbujas,personaAt:g.personaAt,humano:g.humano,fragmentos:g.fragmentos,updatedAt:g.updatedAt}));}catch(_e){}
+  try{sessionStorage.setItem(GUIA_CLAVE,JSON.stringify({version:GUIA_VERSION,ruta:g.ruta,usuario:g.usuario,nodo:g.nodo,tema:g.tema,burbujas:g.burbujas,personaAt:g.personaAt,pedido:g.pedido,humano:g.humano,fragmentos:g.fragmentos,updatedAt:g.updatedAt}));}catch(_e){}
 }
 function guiaGuardada(ruta,usuario){
   let s=null;
@@ -3447,7 +3449,7 @@ function guiaGuardada(ruta,usuario){
   const vale=s&&s.version===GUIA_VERSION&&Number.isFinite(s.updatedAt)&&Date.now()-s.updatedAt<GUIA_VIGENCIA_MS
     &&s.ruta===ruta&&s.usuario===usuario&&Object.hasOwn(GUIA_RAMAS,s.nodo)&&Array.isArray(s.burbujas);
   if(!vale)return null;
-  return {nodo:s.nodo,tema:String(s.tema||""),personaAt:Number(s.personaAt)||0,humano:!!s.humano,fragmentos:Number(s.fragmentos)||0,
+  return {nodo:s.nodo,tema:String(s.tema||""),personaAt:Number(s.personaAt)||0,pedido:s.pedido&&typeof s.pedido==="object"?s.pedido:null,humano:!!s.humano,fragmentos:Number(s.fragmentos)||0,
     burbujas:s.burbujas.filter(b=>b&&["guide","user"].includes(b.q)&&typeof b.h==="string"&&b.h.length<=1200&&typeof b.at==="string").slice(-40)};
 }
 function guiaCargar(){
@@ -3457,7 +3459,7 @@ function guiaCargar(){
     if(guiaActual.ruta===ruta&&(guiaActual.usuario===usuario||!guiaActual.usuario))return guiaActual;
     guiaOlvidar();
   }
-  guiaActual={ruta,usuario,nodo:"inicio",tema:"",burbujas:[],personaAt:0,humano:false,fragmentos:0,lista:[],fallos:0,ingreso:null,esperaTexto:false,updatedAt:Date.now(),...(guiaGuardada(ruta,usuario)||{})};
+  guiaActual={ruta,usuario,nodo:"inicio",tema:"",burbujas:[],personaAt:0,pedido:null,humano:false,fragmentos:0,lista:[],fallos:0,ingreso:null,esperaTexto:false,updatedAt:Date.now(),...(guiaGuardada(ruta,usuario)||{})};
   return guiaActual;
 }
 function guiaOlvidar(){
@@ -3467,7 +3469,15 @@ function guiaOlvidar(){
   document.querySelectorAll(".guide-local").forEach(el=>el.remove());
 }
 function guiaFaltaIdentidad(){return !state.usuario||!state.telefono;}
+// Una persona ya está al tanto: lo que se escriba a mano va directo, sin volver a confirmarlo.
 function guiaPersonaAvisada(){return Date.now()-guiaCargar().personaAt<GUIA_PERSONA_AVISADA_MS;}
+// Lo único que se frena es repetir EXACTAMENTE el mismo pedido enseguida, por el mismo chat y sin
+// que nadie haya contestado. Otro tema, un chat cerrado o una respuesta del operador lo destraban:
+// un pedido nuevo tiene que llegar siempre.
+function guiaPedidoRepetido(texto){
+  const p=guiaCargar().pedido;
+  return !!p&&p.texto===texto&&p.chat===String(state.chatId||"")&&Date.now()-p.at<GUIA_REPETIR_PEDIDO_MS;
+}
 
 // ── Lo que se ve ─────────────────────────────────────────────────────────────
 function guiaBurbuja(html,who,at){
@@ -3498,7 +3508,7 @@ function guiaPintarAccion(html,clase){
 }
 function guiaBotones(lista,op={}){
   const g=guiaCargar(),todas=lista.slice();
-  if(!op.sinPersona&&!guiaPersonaAvisada())todas.push({t:"👤 Hablar con una persona",hace:"persona",sinEco:true,clase:"humano"});
+  if(!op.sinPersona)todas.push({t:"👤 Hablar con una persona",hace:"persona",sinEco:true,clase:"humano"});
   if(!op.sinVolver)todas.push({t:"‹ Otra consulta",eco:"Otra consulta",va:"inicio",clase:"volver"});
   g.lista=todas;
   if(!todas.length)return "";
@@ -3540,7 +3550,7 @@ function guiaTocar(i){
   haptic(6);
   if(o.tema)g.tema=GUIA_TEMAS[o.tema];
   if(!o.sinEco)guiaDijo(o.eco||o.t);
-  return guiaCorrer(()=>o.va?guiaIr(o.va):GUIA_HACE[o.hace]());
+  return guiaCorrer(()=>o.va?guiaIr(o.va):GUIA_HACE[o.hace](o));
 }
 function guiaIr(id){
   const g=guiaCargar(),rama=GUIA_RAMAS[id];
@@ -3565,8 +3575,10 @@ function guiaMostrar(){
 // Nunca por encima de una persona: si contesta un operador, el menú se repliega a un solo botón.
 // Sólo si contesta AHORA: un mensaje viejo del historial no le saca el menú al que vuelve.
 function guiaCederAPersona(cuando){
-  const g=guiaActual;if(!g||g.humano)return;
+  const g=guiaActual;if(!g)return;
   if(cuando&&Date.now()-new Date(cuando).getTime()>GUIA_PERSONA_AVISADA_MS)return;
+  g.pedido=null;
+  if(g.humano)return guiaGuardar();
   g.humano=true;guiaGuardar();
   const accion=$("guiaAccion");
   if(accion&&!guiaOcupada&&!accion.classList.contains("con-ficha"))guiaReponerMenu();
@@ -3706,18 +3718,19 @@ function guiaMiUsuario(){
 }
 
 // ── Una persona ──────────────────────────────────────────────────────────────
-async function guiaPedirPersona(){
+async function guiaPedirPersona(opcion){
   const g=guiaCargar();
   if(guiaFaltaIdentidad())return guiaPedirIdentidad(guiaPedirPersona,"Para pasarte con una persona necesito tus datos 👇");
-  if(guiaPersonaAvisada()){
-    guiaDecir("Ya le avisé a una persona. Si querés sumar algo, escribilo acá abajo.");
+  const texto=guiaTextoPersona(g.tema);
+  if(guiaPedidoRepetido(texto)){
+    if(opcion?.t)guiaDijo(opcion.t);
+    guiaDecir("Ese pedido ya lo tiene una persona. Si querés sumar algo, escribilo acá abajo.");
     return guiaOfrecer([],{sinPersona:true});
   }
-  const texto=guiaTextoPersona(g.tema);
   const r=await enviarMensajeSoporte(texto);
   if(!r?.ok)return guiaFalloEnvio("persona");
   mostrarMensajePropio(texto,null,r);
-  g.personaAt=Date.now();g.fallos=0;guiaGuardar();
+  g.personaAt=Date.now();g.fallos=0;g.pedido={texto,chat:String(state.chatId||""),at:Date.now()};guiaGuardar();
   guiaDecir("Te paso con un operador. <b>Ya le mandé lo que hablamos</b>, no tenés que explicar de nuevo. Te contesta por acá mismo.");
   guiaOfrecer([],{sinPersona:true});
 }
