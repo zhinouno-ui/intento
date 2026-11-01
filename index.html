@@ -519,7 +519,7 @@ const PLATFORM_URL = "https://bet-300.pw";
 // Sello de versión a la vista. Sin esto no hay forma de saber si lo que se abrió es el portal
 // nuevo o la copia vieja que guardó el service worker en el teléfono. Se cambia a mano en cada
 // publicación, junto con la versión del sw.js.
-const PORTAL_VER="v2.1.13 · 01/11";
+const PORTAL_VER="v2.1.14 · 01/11";
 let sb=null;try{if(SUPABASE_ANON_KEY&&!SUPABASE_ANON_KEY.includes("PEGAR_"))sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY)}catch(e){console.warn(e)}
 
 const state={
@@ -873,6 +873,7 @@ function addMsg(text,who="bot",imgUrl=null,meta=null){
   const labels={user:"Vos",operator:"Operador",bot:"Asistente automático",guide:"Asistente automático",system:"Sistema"};
   const stamp=meta?.fecha||meta?.created_at;
   const time=stamp?(_fechaCorta(stamp)||now()):now();
+  wrap._portalTs=Date.parse(stamp||'')||0;wrap._portalClave=(who==='user'?'U|':'O|')+String(meta?.mensaje??meta?.texto??'').trim();
   wrap.innerHTML='<div class="bubble">'+cuerpo+imgHtml+(actions?'<div class="chat-help-actions">'+actions+'</div>':"")+'</div><div class="meta">'+labels[who]+" · "+esc(time)+((who==="user"&&!meta?.local)?'<span class="visto" aria-label="enviado">✓</span>':'')+'</div>';
   chatAgregar(wrap);
   if(!meta?.local && typeof portalMensajeClave==='function'){
@@ -1026,14 +1027,18 @@ function _infoNavegador(){
 const PORTAL_CHAT_BETA_RPC='landing_beta_chat_leer_v1';
 let portalChatVuelo=null, portalChatHistorialVuelo=null, portalChatContexto='', portalChatRuta='probe';
 let portalChatRevisarEn=0, portalChatCursor=null, portalChatInicializado=false, portalChatCerradoHasta=0;
-let portalChatGlobos=new Map(), portalChatHiloEn=0;
+let portalChatGlobos=new Map(), portalChatHiloEn=0, portalChatViejos=[];
 let portalChatSalud={estado:'sin_consultar',contrato:null,ultimoExito:null,ultimoError:null};
 function portalChatEstado(){return {...portalChatSalud,ruta:portalChatRuta,enCurso:!!portalChatVuelo};}
 function portalChatClave(){return JSON.stringify([state.publicCode||'',state.pcCodigo||'',state.usuario||'',state.telefono||'',state.chatId||'',state.chatToken||'']);}
 function portalChatPreparar(){
   const key=portalChatClave();
   if(portalChatContexto!==key){
-    for(const node of portalChatGlobos.values())node.remove();
+    // Si sólo cambió el chat (el jugador contestó y se abrió otro), lo que ya leyó se queda en pantalla.
+    const jugador=k=>k?JSON.stringify(JSON.parse(k).slice(0,4)):'';
+    const quedan=jugador(portalChatContexto)===jugador(key)?portalChatViejos.concat([...portalChatGlobos.values()].filter(n=>n._portalTs&&n._portalClave)):[];
+    for(const node of [...portalChatViejos,...portalChatGlobos.values()])if(!quedan.includes(node))node.remove();
+    portalChatViejos=quedan;
     portalChatGlobos=new Map();state.misGlobos=new Map();
     state.seenMsgIds=new Set();state._threadRendered=new Set();
     state.shownTexts=new Set();state._opMsgSeen=new Set();
@@ -1052,6 +1057,10 @@ function portalMensajeClave(m){
 function portalRegistrarGlobo(m,node){
   const key=portalMensajeClave(m);
   if(key)portalChatGlobos.set(key,node);
+}
+function portalChatPrevio(m){
+  const ts=Date.parse(m.created_at||m.fecha||'')||0,clave=(chatMessageRole(m)==='user'?'U|':'O|')+String(m.mensaje??m.texto??'').trim();
+  return ts?portalChatViejos.find(n=>n._portalClave===clave&&Math.abs(n._portalTs-ts)<=10000):null;
 }
 function portalChatFuncionAusente(error,name){
   return !!error && ['PGRST202','42883'].includes(String(error.code||''))
@@ -1114,6 +1123,8 @@ function portalChatRenderRows(rows,notificar,prepend){
     const old=portalChatGlobos.get(key);
     const signature=JSON.stringify([m.tipo_emisor,m.origen,m.emisor,m.auto,m.mensaje,m.texto,m.imagen_url,m.imagen]);
     if(old&&old._portalSignature===signature)continue;
+    const previo=old?null:portalChatPrevio(m);
+    if(previo){previo._portalSignature=signature;portalChatGlobos.set(key,previo);continue;}
     const who=chatMessageRole(m);
     let text=String(m.mensaje||m.texto||''),ing=null;
     const crudo=text;
@@ -1355,6 +1366,7 @@ function portalChatRenderLegacy(thread,resolved){
     const key=threadKey(m);
     if(state._threadRendered.has(key))return;
     state._threadRendered.add(key);
+    if(portalChatPrevio(m))return;
     const nuevo=!state.portalThreadSeen.has(key);
     state.portalThreadSeen.add(key);
     renderThreadMsg({...m,portal_key:'l:'+key}, nuevo);
