@@ -519,7 +519,7 @@ const PLATFORM_URL = "https://bet-300.pw";
 // Sello de versión a la vista. Sin esto no hay forma de saber si lo que se abrió es el portal
 // nuevo o la copia vieja que guardó el service worker en el teléfono. Se cambia a mano en cada
 // publicación, junto con la versión del sw.js.
-const PORTAL_VER="v2.1.10 · 01/11";
+const PORTAL_VER="v2.1.11 · 01/11";
 let sb=null;try{if(SUPABASE_ANON_KEY&&!SUPABASE_ANON_KEY.includes("PEGAR_"))sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY)}catch(e){console.warn(e)}
 
 const state={
@@ -1067,6 +1067,16 @@ function portalChatSeCerro(){
   portalChatCerradoHasta=Date.now()+60000;
   if(typeof guiaChatCerrado==="function")guiaChatCerrado();
 }
+// El chat se guarda en dos lados: la tabla nueva y una copia en el hilo de la solicitud, que es lo
+// único que leen los NODO sin actualizar. Una solicitud vive en un solo lugar y por eso nunca se
+// duplica. Cuando el servidor avisa que el NODO de esta oficina anda por el canal nuevo, igual que
+// avisa cuál es la billetera activa, el mensaje ya viene en rows y su copia sobra. Lo que existe
+// sólo en el hilo (lo que el operador manda por el camino viejo) sigue saliendo.
+function portalChatSinCopias(hilo,filas){
+  const huella=(m,cuando)=>[chatMessageRole(m)==='user'?'U':'O',String(m.mensaje??''),String(cuando||'').slice(0,19)].join('|');
+  const ya=new Set(filas.map(m=>huella(m,m.created_at)));
+  return hilo.filter(m=>!ya.has(huella(m,m.fecha)));
+}
 function portalChatUsarRuta(route){
   if(portalChatRuta!==route&&(portalChatRuta==='beta'||route==='beta')){
     // Cambio de representación: descartar sólo globos remotos, conservar la guía
@@ -1197,7 +1207,7 @@ async function pollPortalConversation(){
             const recovery=portalChatInicializado&&beta.rows.length>0
               &&!beta.rows.some(m=>portalChatGlobos.has(portalMensajeClave(m)));
             portalChatRenderRows(beta.rows,portalChatInicializado,false);
-            portalChatRenderLegacy(beta.legacy_thread,true);
+            portalChatRenderLegacy(portalChatSinCopias(beta.legacy_thread,beta.rows),true);
             portalChatMostrarAnterior(beta,recovery);portalChatInicializado=true;
           }else{
             portalChatUsarRuta('legacy');portalChatRevisarEn=Date.now()+60000;
