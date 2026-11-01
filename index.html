@@ -519,7 +519,7 @@ const PLATFORM_URL = "https://bet-300.pw";
 // Sello de versión a la vista. Sin esto no hay forma de saber si lo que se abrió es el portal
 // nuevo o la copia vieja que guardó el service worker en el teléfono. Se cambia a mano en cada
 // publicación, junto con la versión del sw.js.
-const PORTAL_VER="v2.1.11 · 01/11";
+const PORTAL_VER="v2.1.13 · 01/11";
 let sb=null;try{if(SUPABASE_ANON_KEY&&!SUPABASE_ANON_KEY.includes("PEGAR_"))sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY)}catch(e){console.warn(e)}
 
 const state={
@@ -1026,7 +1026,7 @@ function _infoNavegador(){
 const PORTAL_CHAT_BETA_RPC='landing_beta_chat_leer_v1';
 let portalChatVuelo=null, portalChatHistorialVuelo=null, portalChatContexto='', portalChatRuta='probe';
 let portalChatRevisarEn=0, portalChatCursor=null, portalChatInicializado=false, portalChatCerradoHasta=0;
-let portalChatGlobos=new Map();
+let portalChatGlobos=new Map(), portalChatHiloEn=0;
 let portalChatSalud={estado:'sin_consultar',contrato:null,ultimoExito:null,ultimoError:null};
 function portalChatEstado(){return {...portalChatSalud,ruta:portalChatRuta,enCurso:!!portalChatVuelo};}
 function portalChatClave(){return JSON.stringify([state.publicCode||'',state.pcCodigo||'',state.usuario||'',state.telefono||'',state.chatId||'',state.chatToken||'']);}
@@ -1037,7 +1037,7 @@ function portalChatPreparar(){
     portalChatGlobos=new Map();state.misGlobos=new Map();
     state.seenMsgIds=new Set();state._threadRendered=new Set();
     state.shownTexts=new Set();state._opMsgSeen=new Set();
-    portalChatContexto=key;portalChatRuta='probe';portalChatRevisarEn=0;portalChatCerradoHasta=0;
+    portalChatContexto=key;portalChatRuta='probe';portalChatRevisarEn=0;portalChatCerradoHasta=0;portalChatHiloEn=Date.now()+15000;
     portalChatCursor=null;portalChatInicializado=false;portalChatHistorialVuelo=null;
     portalChatSalud={estado:'sin_consultar',contrato:null,ultimoExito:null,ultimoError:null};
     const button=$('chatEarlier');if(button)button.remove();
@@ -1073,9 +1073,11 @@ function portalChatSeCerro(){
 // avisa cuál es la billetera activa, el mensaje ya viene en rows y su copia sobra. Lo que existe
 // sólo en el hilo (lo que el operador manda por el camino viejo) sigue saliendo.
 function portalChatSinCopias(hilo,filas){
-  const huella=(m,cuando)=>[chatMessageRole(m)==='user'?'U':'O',String(m.mensaje??''),String(cuando||'').slice(0,19)].join('|');
-  const ya=new Set(filas.map(m=>huella(m,m.created_at)));
-  return hilo.filter(m=>!ya.has(huella(m,m.fecha)));
+  const segundo=v=>{const t=Date.parse(String(v||'').slice(0,19)+'Z');return Number.isFinite(t)?t/1000:null;};
+  const lado=m=>(chatMessageRole(m)==='user'?'U|':'O|')+String(m.mensaje??'').trim();
+  const ya=new Map();
+  for(const f of filas){const s=segundo(f.created_at);if(s!==null)ya.set(lado(f),(ya.get(lado(f))||[]).concat(s));}
+  return hilo.filter(m=>{const s=segundo(m.fecha);return !(s!==null&&(ya.get(lado(m))||[]).some(x=>Math.abs(x-s)<=10));});
 }
 function portalChatUsarRuta(route){
   if(portalChatRuta!==route&&(portalChatRuta==='beta'||route==='beta')){
@@ -1123,9 +1125,15 @@ function portalChatRenderRows(rows,notificar,prepend){
     const node=addMsg(escMsg(text),who,img,m);
     node._portalSignature=signature;
     node._portalCanonicalId=m.id==null?'':String(m.id);
+    node._portalTs=Date.parse(m.created_at||m.fecha||'')||0;
     portalChatGlobos.set(key,node);
     if(old){host.insertBefore(node,old);old.remove();}
-    else if(node._portalCanonicalId){
+    else if(node._portalTs){
+      // Cada globo va por la hora del servidor, venga de la tabla o del hilo. Pegar lo del hilo al
+      // final desordenaba la charla cada vez que se volvía a abrir.
+      const after=Array.from(host.children).find(n=>n!==node&&n._portalTs>node._portalTs);
+      if(after)host.insertBefore(node,after);
+    }else if(node._portalCanonicalId){
       const id=node._portalCanonicalId;
       const after=Array.from(host.children).find(n=>n!==node&&n._portalCanonicalId
         &&(n._portalCanonicalId.length>id.length||(n._portalCanonicalId.length===id.length&&n._portalCanonicalId>id)));
@@ -1208,6 +1216,20 @@ async function pollPortalConversation(){
               &&!beta.rows.some(m=>portalChatGlobos.has(portalMensajeClave(m)));
             portalChatRenderRows(beta.rows,portalChatInicializado,false);
             portalChatRenderLegacy(portalChatSinCopias(beta.legacy_thread,beta.rows),true);
+            // Un jugador puede tener dos pantallas con dos chats. Lo que NODO escribe va al hilo de su
+            // usuario, y ese hilo se lee siempre: si no, le llegaba a una pantalla y a la otra no.
+            // Cada 15 segundos y no cada 5: con todos los jugadores, una lectura más en cada vuelta pesa.
+            let hiloUsuario=null;
+            if(Date.now()>=portalChatHiloEn){
+              portalChatHiloEn=Date.now()+15000;
+              const delUsuario=await rpc('landing_portal_chat_thread_get',{p_usuario:state.usuario,p_public_code:state.publicCode,p_telefono:state.telefono||''});
+              if(!current())return;
+              hiloUsuario=delUsuario&&!delUsuario.error?(normalize(delUsuario.data)||delUsuario.data):null;
+            }
+            if(Array.isArray(hiloUsuario?.chat_thread)){
+              const vistos=beta.rows.concat(beta.legacy_thread.map(m=>({...m,created_at:m.fecha})));
+              portalChatRenderLegacy(portalChatSinCopias(hiloUsuario.chat_thread,vistos).map(m=>({...m,portal_key:'u:'+threadKey(m)})),true);
+            }
             portalChatMostrarAnterior(beta,recovery);portalChatInicializado=true;
           }else{
             portalChatUsarRuta('legacy');portalChatRevisarEn=Date.now()+60000;
