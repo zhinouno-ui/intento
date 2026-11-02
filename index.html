@@ -519,7 +519,7 @@ const PLATFORM_URL = "https://bet-300.pw";
 // Sello de versión a la vista. Sin esto no hay forma de saber si lo que se abrió es el portal
 // nuevo o la copia vieja que guardó el service worker en el teléfono. Se cambia a mano en cada
 // publicación, junto con la versión del sw.js.
-const PORTAL_VER="v2.1.16 · 02/11";
+const PORTAL_VER="v2.1.17 · 02/11";
 let sb=null;try{if(SUPABASE_ANON_KEY&&!SUPABASE_ANON_KEY.includes("PEGAR_"))sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY)}catch(e){console.warn(e)}
 
 const state={
@@ -753,7 +753,7 @@ let _vinculoOk=null;   // la última respuesta buena, 2 minutos, para no demorar
 async function vinculoPuedeOperar(){
   if(!state.usuario||!state.telefono)return {ok:false,verdict:"SIN_DATOS"};
   const v=_vinculoOk;
-  if(v&&v.usuario===state.usuario&&v.telefono===state.telefono&&Date.now()-v.at<120000)return {ok:true,verdict:v.verdict};
+  if(v&&v.usuario===state.usuario&&v.telefono===state.telefono&&Date.now()-v.at<120000)return {ok:true,verdict:v.verdict,estado:v.estado};
   let d;
   try{
     const r=await rpc("landing_portal_resolver_vinculo",{p_pc_codigo:state.pcCodigo,p_usuario:state.usuario,p_telefono:state.telefono});
@@ -762,13 +762,14 @@ async function vinculoPuedeOperar(){
   }catch(_e){return {ok:null};}   // sin conexión: el servidor igual controla al recibir el pedido
   const verdict=String(d.verdict||"").toUpperCase();
   if(VINCULO_OPERA.includes(verdict)){
-    _vinculoOk={usuario:state.usuario,telefono:state.telefono,verdict,at:Date.now()};
+    const estado=String(d.estado||"").toUpperCase();
+    _vinculoOk={usuario:state.usuario,telefono:state.telefono,verdict,estado,at:Date.now()};
     // Lo validaron y no tocó Ingresar: ya puede operar.
     if(verdict==="ACCESO"&&state.nivelAcceso!=="OK"){
       state.nivelAcceso="OK";state.motivoSoporte="";
       try{localStorage.setItem("bet300_nivel_acceso","OK");localStorage.removeItem("bet300_motivo_soporte");}catch(_e){}
     }
-    return {ok:true,verdict};
+    return {ok:true,verdict,estado};
   }
   // Sólo frena lo que el servidor rechaza seguro. Una respuesta que no se entiende no frena a nadie:
   // el servidor igual controla al recibir el pedido.
@@ -3909,13 +3910,23 @@ async function guiaRevalidar(){
   guiaDecir("Todavía no aparece activada. Apenas esté, te sale el botón <b>Ingresar</b> acá mismo.");
   guiaOfrecer([]);
 }
-function guiaMiUsuario(){
-  if(/^(ayuda|nuevo)-/.test(state.usuario||"")){
-    guiaDecir("Todavía no tengo tu usuario. Un operador lo revisa y te avisa por acá.");
-    return guiaOfrecer([]);
+// El usuario guardado es lo que el jugador escribió al entrar. Se lo repetía tal cual, y si lo había
+// escrito mal le confirmaba el error (Carlitos, 2/11). Sólo se le dice si el servidor confirma que
+// esa cuenta está vinculada a su teléfono; si no, una persona se lo busca con el teléfono.
+async function guiaMiUsuario(){
+  if(state.usuario&&state.telefono&&!/^(ayuda|nuevo)-/.test(state.usuario)){
+    const v=await vinculoPuedeOperar();
+    if(v.verdict==="ACCESO"&&v.estado==="VINCULADO"){
+      guiaDecir("Tu usuario es <b>"+esc(state.usuario)+"</b>. Es el nombre con el que entrás a jugar.");
+      return guiaOfrecer([]);
+    }
   }
-  guiaDecir("Tu usuario es <b>"+esc(state.usuario)+"</b>. Es el nombre con el que entrás a jugar.");
-  guiaOfrecer([]);
+  if(state._altaSoporteEnviado||guiaPersonaAvisada()){
+    guiaDecir("Tu cuenta todavía no está validada. Ya tiene tus datos una persona: te confirma el usuario por acá.");
+    return guiaOfrecer([],{sinPersona:true});
+  }
+  guiaDecir("Todavía no te lo puedo confirmar: primero hay que validar tu cuenta. Dejame tu teléfono y una persona te lo busca 👇");
+  guiaAbrirIngreso("olvido");
 }
 
 // ── Una persona ──────────────────────────────────────────────────────────────
