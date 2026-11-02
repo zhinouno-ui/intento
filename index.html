@@ -519,7 +519,7 @@ const PLATFORM_URL = "https://bet-300.pw";
 // Sello de versión a la vista. Sin esto no hay forma de saber si lo que se abrió es el portal
 // nuevo o la copia vieja que guardó el service worker en el teléfono. Se cambia a mano en cada
 // publicación, junto con la versión del sw.js.
-const PORTAL_VER="v2.1.17 · 02/11";
+const PORTAL_VER="v2.1.18 · 02/11";
 let sb=null;try{if(SUPABASE_ANON_KEY&&!SUPABASE_ANON_KEY.includes("PEGAR_"))sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY)}catch(e){console.warn(e)}
 
 const state={
@@ -1604,10 +1604,22 @@ function _persistSoporte(){
 // un ticket CLARO de alta nueva. No pelea con el cotejo (no tiene usuario aún).
 // OJO: el bono de bienvenida NO es de "nuevos" — es para la PRIMERA carga de CUALQUIERA, y lo
 // maneja la tarjeta de bono en Inicio (renderBonoBienvenidaCard). Este flujo NO lo menciona.
+// Teléfono argentino: 10 números con el código de área (11 2345 6789). Se aceptan el +54, el 9 y el
+// 0 de adelante, que es como se copia de WhatsApp; el 15 no, porque no se sabe dónde termina la
+// característica. Alcanzaba con 6 números y llegaban pedidos con "Tel: 111234" (Carlitos, 2/11).
+// Es la única regla: la usan el ingreso, el registro y el "no me acuerdo", en pantalla y en el chat.
+const TEL_AYUDA="Escribí tu teléfono con código de área: 10 números, sin 0 ni 15. Ej: 11 2345 6789.";
+function telefonoDiezDigitos(t){
+  let d=String(t||"").replace(/\D/g,"");
+  if(d.length>10&&d.startsWith("54"))d=d.slice(2);
+  if(d.length>10&&d.startsWith("9"))d=d.slice(1);
+  if(d.length>10&&d.startsWith("0"))d=d.slice(1);
+  return d.length===10?d:"";
+}
 function pedirRegistroCon(nombre,telefono){
   nombre=String(nombre||"").trim();
   telefono=String(telefono||"").trim();
-  if(!telefono || telefono.replace(/\D/g,"").length<6){ return {error:"Dejanos tu teléfono (con código de área) para crearte el usuario y contactarte."}; }
+  if(!telefonoDiezDigitos(telefono)){ return {error:TEL_AYUDA}; }
   state.usuario = nombre || ("nuevo-"+telefono.replace(/\D/g,""));
   state.telefono = telefono;
   state.nivelAcceso = "SOPORTE";
@@ -1626,7 +1638,7 @@ function pedirRegistro(){
 function pedirAyudaCon(usuario,telefono){
   usuario=String(usuario||"").trim();
   telefono=String(telefono||"").trim();
-  if(!telefono || telefono.replace(/\D/g,"").length<6){ return {error:"Dejanos tu teléfono (con código de área) para poder ayudarte a validar tu cuenta."}; }
+  if(!telefonoDiezDigitos(telefono)){ return {error:TEL_AYUDA}; }
   state.usuario = usuario || ("ayuda-"+telefono.replace(/\D/g,""));
   state.telefono = telefono;
   state.nivelAcceso = "SOPORTE";
@@ -1660,7 +1672,7 @@ async function ingresarJugador(usuarioRaw,telefonoRaw){
   const usuario=normalizarUsuarioPlataforma(usuarioRaw||"");
   const telefono=String(telefonoRaw||"").trim();
   if(!usuario)return {error:"Indicá tu usuario de plataforma (el nombre con el que entrás a jugar, no tu email)."};
-  if(!telefono || telefono.replace(/\D/g,"").length<6)return {error:"Indicá tu teléfono con código de área (sin 0 ni 15)."};
+  if(!telefonoDiezDigitos(telefono))return {error:TEL_AYUDA};
   if(!state.pcCodigo)return {error:"No identificamos tu agente. Abrí el enlace de tu agente o contactá a soporte."};
 
   let d={};
@@ -3556,12 +3568,26 @@ function guiaTextoPersona(tema){return "Pido hablar con una persona.\nTema: "+(t
 function guiaTextoComprobante(pedido){return "Comprobante de mi transferencia"+(pedido?" · pedido "+pedido:"")+".";}
 function guiaTextoMonto(real,pedido,id){return "Corrección de monto: el pedido decía "+_money(pedido)+" y transferí "+_money(real)+"."+(id?" Pedido "+id+".":"");}
 
+// Sin validar, el menú es corto: nada de cargas, retiros ni fichas que después no se pueden mandar.
+// Se le prometía "completá esto 👇" y abajo le decía que no estaba validado (Juan, 2/11).
+function guiaSinValidar(){return !guiaFaltaIdentidad()&&state.nivelAcceso==="SOPORTE";}
+function guiaYaPasoDatos(){return !!state._altaSoporteEnviado||guiaPersonaAvisada();}
+const GUIA_SIN_VALIDAR_HACE=["validarCuenta","registrarme","olvideUsuario","revalidar","persona","ingresar","validar","registro","ayuda","gracias"];
 const GUIA_RAMAS={
-  inicio:{dice:"¿Con qué te doy una mano?",opciones:()=>[
+  inicio:{dice:()=>!guiaSinValidar()?"¿Con qué te doy una mano?"
+      :guiaYaPasoDatos()?"Tu cuenta todavía no está validada. Ya tiene tus datos una persona: apenas te habilite, seguimos con lo que necesites."
+      :"Tu cuenta todavía no está validada. Validala y después te ayudo con cargas y retiros.",
+    opciones:()=>!guiaSinValidar()?[
     {t:"💰 Una carga",va:"carga"},
     {t:"🏧 Un retiro",va:"retiro"},
     {t:"🔑 Entrar a mi cuenta",va:"cuenta"},
     {t:"✍️ Otra cosa",hace:"otraCosa"}
+  ]:guiaYaPasoDatos()?[
+    {t:"✅ Ya me activaron",hace:"revalidar"}
+  ]:[
+    {t:"✅ Validar mi cuenta",hace:"validarCuenta"},
+    {t:"🆕 Soy nuevo",hace:"registrarme"},
+    {t:"🔑 No me acuerdo el usuario",hace:"olvideUsuario"}
   ]},
   carga:{tema:"carga",identidad:true,dice:"¿Qué pasó con la carga?",opciones:()=>[
     {t:"Transferí y no me apareció",hace:"noAparecio",tema:"noAparece"},
@@ -3714,9 +3740,14 @@ function guiaTocar(i){
   if(o.hace==="otraCosa"){try{$("freeInput")?.focus();}catch(_e){}}
   if(o.tema)g.tema=GUIA_TEMAS[o.tema];
   if(!o.sinEco)guiaDijo(o.eco||o.t);
-  return guiaCorrer(()=>o.va?guiaIr(o.va):GUIA_HACE[o.hace](o));
+  return guiaCorrer(async()=>{
+    if(guiaChequeo)await guiaChequeo;
+    if(guiaSinValidar()&&(o.va?o.va!=="inicio":!GUIA_SIN_VALIDAR_HACE.includes(o.hace)))return guiaIr("inicio");
+    return o.va?guiaIr(o.va):GUIA_HACE[o.hace](o);
+  });
 }
 function guiaIr(id){
+  if(guiaSinValidar())id="inicio";
   const g=guiaCargar(),rama=GUIA_RAMAS[id];
   if(rama.identidad&&guiaFaltaIdentidad())return guiaPedirIdentidad(()=>guiaIr(id));
   g.nodo=id;g.tema=rama.tema?GUIA_TEMAS[rama.tema]:"";g.ingreso=null;g.esperaTexto=false;
@@ -3726,12 +3757,14 @@ function guiaIr(id){
 function guiaReponerMenu(){
   const g=guiaCargar();
   if(g.humano)return guiaOfrecer([{t:"Ver opciones",va:"inicio"}],{sinPersona:true,sinVolver:true});
-  guiaOfrecer(GUIA_RAMAS[g.nodo].opciones(),{sinVolver:g.nodo==="inicio"});
+  const nodo=guiaSinValidar()?"inicio":g.nodo;
+  guiaOfrecer(GUIA_RAMAS[nodo].opciones(),{sinVolver:nodo==="inicio"});
 }
 function guiaMostrar(){
   const g=guiaCargar();
   if(guiaPintada)return;
   guiaPintada=true;
+  guiaChequearCuenta();
   if(!g.burbujas.length){
     // Ya viene hablando con una persona: el saludo y el menú no van encima de esa charla.
     if(g.humano)return guiaReponerMenu();
@@ -3739,6 +3772,31 @@ function guiaMostrar(){
   }
   g.burbujas.forEach(b=>guiaBurbuja(b.h,b.q,b.at));
   guiaReponerMenu();
+}
+// Al abrir el chat se le pregunta al servidor si la cuenta está validada, ANTES de que pueda elegir
+// algo: el menú arranca con lo que dice el teléfono y, si el servidor dice otra cosa, se rearma.
+// Un toque que llega antes de la respuesta la espera (guiaTocar).
+let guiaChequeo=null;
+function guiaChequearCuenta(){
+  if(guiaFaltaIdentidad())return null;
+  const antes=guiaSinValidar();
+  guiaChequeo=Promise.resolve().then(()=>vinculoPuedeOperar()).catch(()=>{}).then(()=>{
+    guiaChequeo=null;
+    if(guiaSinValidar()===antes||guiaOcupada||$("guiaAccion")?.classList.contains("con-ficha"))return;
+    const g=guiaCargar();
+    if(g.humano)return guiaReponerMenu();
+    guiaIr("inicio");
+  });
+  return guiaChequeo;
+}
+// Validar desde el menú corto. Validado, sigue con lo que había venido a hacer, si había algo.
+function guiaValidarCuenta(){
+  guiaCargar().ingreso={modo:"validar",siguiente:()=>{
+    const que=despuesPendiente();
+    if(que){despuesDeValidar("");return GUIA_DESPUES[que]();}
+    return guiaIr("inicio");
+  }};
+  guiaFichaIngreso();
 }
 // Nunca por encima de una persona: si contesta un operador, el menú se repliega a un solo botón.
 // Sólo si contesta AHORA: un mensaje viejo del historial no le saca el menú al que vuelve.
@@ -3985,6 +4043,7 @@ async function guiaNoAparecio(){
     guiaDecir("Tu carga de <b>"+guiaPlata(r.monto)+"</b> del <b>"+guiaFecha(r)+"</b> ya está <b>acreditada</b>. Si no la ves en la plataforma, te paso con una persona.");
     return guiaOfrecer([]);
   }
+  if(!await guiaPuedeOperar("carga"))return;
   guiaDecir("No veo ninguna carga reciente tuya. Si ya transferiste, completá esto y queda en la fila 👇");
   return guiaFichaCarga(true);
 }
@@ -4084,6 +4143,7 @@ async function guiaMontoMal(){
   const rows=await guiaHistorial("montoMal");if(!rows)return;
   const r=guiaUltima(rows,"CARGA");
   if(!r||guiaEstado(r)!=="pendiente"){
+    if(!await guiaPuedeOperar("carga"))return;
     guiaDecir("No veo ninguna carga tuya en la fila. Si ya transferiste, completá esto y queda con el monto real 👇");
     return guiaFichaCarga(true);
   }
@@ -4270,7 +4330,7 @@ async function guiaEnviarClave(){
 const GUIA_HACE={persona:guiaPedirPersona,otraCosa:guiaOtraCosa,noAparecio:guiaNoAparecio,fichaCarga:()=>guiaFichaCarga(),rechazo:guiaRechazo,
   montoMal:guiaMontoMal,otraCuenta:guiaOtraCuenta,comprobante:()=>guiaFichaComprobante(solicitudIdValido()),fichaRetiro:guiaFichaRetiro,
   retiroEstado:guiaRetiroEstado,ultimoRetiro:guiaUltimoRetiro,fichaClave:guiaFichaClave,miUsuario:guiaMiUsuario,gracias:guiaGracias,revalidar:guiaRevalidar,
-  ingresar:()=>guiaAbrirIngreso("login"),registrarme:()=>guiaAbrirIngreso("registro"),olvideUsuario:()=>guiaAbrirIngreso("olvido"),
+  ingresar:()=>guiaAbrirIngreso("login"),validarCuenta:guiaValidarCuenta,registrarme:()=>guiaAbrirIngreso("registro"),olvideUsuario:()=>guiaAbrirIngreso("olvido"),
   validar:()=>guiaAvisarPersona("validar"),registro:()=>guiaAvisarPersona("registro"),ayuda:()=>guiaAvisarPersona("ayuda")};
 
 // ── Push PWA ──────────────────────────────────────────────────────────────
