@@ -519,7 +519,7 @@ const PLATFORM_URL = "https://bet-300.pw";
 // Sello de versión a la vista. Sin esto no hay forma de saber si lo que se abrió es el portal
 // nuevo o la copia vieja que guardó el service worker en el teléfono. Se cambia a mano en cada
 // publicación, junto con la versión del sw.js.
-const PORTAL_VER="v2.1.15 · 02/11";
+const PORTAL_VER="v2.1.16 · 02/11";
 let sb=null;try{if(SUPABASE_ANON_KEY&&!SUPABASE_ANON_KEY.includes("PEGAR_"))sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY)}catch(e){console.warn(e)}
 
 const state={
@@ -553,7 +553,8 @@ const CLAVES_SOLICITUD = ["bet300_pending_tipo","bet300_pending_billetera",
 const CLAVES_CHAT      = ["bet300_chat_id","bet300_chat_token"];
 const CLAVES_JUGADOR   = ["bet300_usuario","bet300_telefono","bet300_vinculo_estado",
                           "bet300_nivel_acceso","bet300_motivo_soporte","bet300_portal_thread_seen",
-                          "bet300_validacion_id","bet300_validacion_estado","bet300_bono_usado"];
+                          "bet300_validacion_id","bet300_validacion_estado","bet300_bono_usado",
+                          "bet300_despues_validar"];
 let _enviando=false, _toqueMs=null;
 const MONTO_MIN_CARGA=1000, MONTO_MIN_RETIRO=5000, RETIRO_COOLDOWN_MS=24*60*60*1000;
 function _minCarga(){ return Number(state.minCarga)>0 ? Number(state.minCarga) : MONTO_MIN_CARGA; }
@@ -740,10 +741,70 @@ function showScreen(name){
   else state.chatLibre=false;
 }
 function goHome(){renderHome();showScreen("home");}
-function _bloqueoSoporte(){ if((state.nivelAcceso||"")==="SOPORTE"){ toast("Validá tu usuario + teléfono para operar. Mientras tanto, escribinos por chat."); goHome(); return true; } return false; }
-function goCarga(){if(_bloqueoSoporte())return;if(bloquearNuevaSolicitud("CARGA"))return;showScreen("carga");renderCarga();}
-function goRetiro(){if(_bloqueoSoporte())return;if(bloquearNuevaSolicitud("RETIRO"))return;const r=retiroCooldownRestanteMs();if(r>0){toast("Ya solicitaste un retiro hoy. Podés pedir otro en "+_fmtRestante(r)+".");return;}showScreen("retiro");renderRetiro();}
-function goClave(){if(_bloqueoSoporte())return;showScreen("clave");renderClave();}
+// ── ¿Puede operar? Lo dice el servidor, y ANTES de mostrar la cuenta ──────────
+// El servidor sólo acepta cargas, retiros y cambios de clave de una cuenta vinculada (ACCESO) o
+// nueva en una oficina sin padrón (NUEVO / PENDIENTE). Se le preguntaba recién al mandar el pedido:
+// el jugador veía la cuenta, transfería, y ahí le decían que no estaba habilitado. Se iba sin poder
+// cargar (Juan, 2/11). Ahora se pregunta antes y, si falta validar, se lo valida primero y después
+// sigue con lo que quería hacer.
+const VINCULO_OPERA=["ACCESO","NUEVO","PENDIENTE"];
+const VINCULO_NO_OPERA=["NO_REGISTRADO","CONFLICTO_TELEFONO","CONFLICTO_USUARIO","BLOQUEADO","TEL_INVALIDO","SIN_USUARIO"];
+let _vinculoOk=null;   // la última respuesta buena, 2 minutos, para no demorar cada toque
+async function vinculoPuedeOperar(){
+  if(!state.usuario||!state.telefono)return {ok:false,verdict:"SIN_DATOS"};
+  const v=_vinculoOk;
+  if(v&&v.usuario===state.usuario&&v.telefono===state.telefono&&Date.now()-v.at<120000)return {ok:true,verdict:v.verdict};
+  let d;
+  try{
+    const r=await rpc("landing_portal_resolver_vinculo",{p_pc_codigo:state.pcCodigo,p_usuario:state.usuario,p_telefono:state.telefono});
+    if(r.error)return {ok:null};
+    d=normalize(r.data)||r.data||{};
+  }catch(_e){return {ok:null};}   // sin conexión: el servidor igual controla al recibir el pedido
+  const verdict=String(d.verdict||"").toUpperCase();
+  if(VINCULO_OPERA.includes(verdict)){
+    _vinculoOk={usuario:state.usuario,telefono:state.telefono,verdict,at:Date.now()};
+    // Lo validaron y no tocó Ingresar: ya puede operar.
+    if(verdict==="ACCESO"&&state.nivelAcceso!=="OK"){
+      state.nivelAcceso="OK";state.motivoSoporte="";
+      try{localStorage.setItem("bet300_nivel_acceso","OK");localStorage.removeItem("bet300_motivo_soporte");}catch(_e){}
+    }
+    return {ok:true,verdict};
+  }
+  // Sólo frena lo que el servidor rechaza seguro. Una respuesta que no se entiende no frena a nadie:
+  // el servidor igual controla al recibir el pedido.
+  if(!VINCULO_NO_OPERA.includes(verdict))return {ok:null,verdict};
+  _vinculoOk=null;
+  state.nivelAcceso="SOPORTE";
+  state.motivoSoporte=d.mensaje||"Todavía falta validar tu cuenta.";
+  try{localStorage.setItem("bet300_nivel_acceso","SOPORTE");localStorage.setItem("bet300_motivo_soporte",state.motivoSoporte);}catch(_e){}
+  return {ok:false,verdict,mensaje:d.mensaje||""};
+}
+// Lo que quería hacer cuando le faltaba validar. Sobrevive a cerrar la página y a que el operador
+// le corrija el usuario: vale un día.
+function despuesDeValidar(que){
+  try{
+    if(que)localStorage.setItem("bet300_despues_validar",JSON.stringify({que,at:Date.now()}));
+    else localStorage.removeItem("bet300_despues_validar");
+  }catch(_e){}
+}
+function despuesPendiente(){
+  try{
+    const d=JSON.parse(localStorage.getItem("bet300_despues_validar")||"null");
+    if(d&&["carga","retiro","clave"].includes(d.que)&&Date.now()-Number(d.at)<24*60*60*1000)return d.que;
+  }catch(_e){}
+  return "";
+}
+async function vinculoAntesDeOperar(que){
+  if(!state.pcCodigo){toast("No identificamos tu agente. Abrí el enlace de tu agente o contactá a soporte.");return false;}
+  await vinculoPuedeOperar();
+  if(state.nivelAcceso!=="SOPORTE"){if(despuesPendiente()===que)despuesDeValidar("");return true;}
+  goChat();
+  guiaFaltaValidar(que);
+  return false;
+}
+async function goCarga(){if(bloquearNuevaSolicitud("CARGA"))return;if(!await vinculoAntesDeOperar("carga"))return;showScreen("carga");renderCarga();}
+async function goRetiro(){if(bloquearNuevaSolicitud("RETIRO"))return;const r=retiroCooldownRestanteMs();if(r>0){toast("Ya solicitaste un retiro hoy. Podés pedir otro en "+_fmtRestante(r)+".");return;}if(!await vinculoAntesDeOperar("retiro"))return;showScreen("retiro");renderRetiro();}
+async function goClave(){if(!await vinculoAntesDeOperar("clave"))return;showScreen("clave");renderClave();}
 function goEstado(){showScreen("estado");renderEstado();}
 function goChat(){ try{hideOperatorBubble();}catch(_e){} showScreen("chat");renderChat();}
 // Alta de usuario NUEVO: abre el chat y auto-envía un mensaje predeterminado con el apodo y el
@@ -949,11 +1010,32 @@ async function confirmarIngresoValidado(usuario,telefono){
       toast("⚠️ "+(d.mensaje||"Escribinos por chat.")); if(btn){btn.disabled=false;btn.textContent="Reintentar ingreso";}
       return;
     }
-    // El operador YA validó desde el panel (por eso llegó ⟦INGRESAR⟧, por un canal autenticado):
-    // si el cotejo da ACCESO, perfecto; si todavía no propagó, igual confiamos en esa validación y
-    // lo dejamos entrar. Así el botón funciona aunque el cotejo automático tarde en reflejar el cambio.
+    // Si el servidor contestó y dice que no puede operar, no se lo marca habilitado: antes se
+    // confiaba igual, el jugador veía la cuenta, transfería y el servidor le rechazaba la carga
+    // (Juan, 2/11). NODO deja vinculada la cuenta ANTES de mandar ⟦INGRESAR⟧, así que no hay demora
+    // que esperar. Sin respuesta (señal), se confía: el servidor controla igual al recibir el pedido.
+    if(!r.error&&VINCULO_NO_OPERA.includes(String(verdict).toUpperCase())){
+      if(btn){btn.disabled=false;btn.textContent="Reintentar ingreso";}
+      if(!state._ingresoSinVinculoAvisado){
+        state._ingresoSinVinculoAvisado=true;
+        const texto="Toqué Ingresar pero todavía no me deja operar. Usuario: "+state.usuario+". Tel: "+state.telefono+".";
+        const env=await enviarMensajeSoporte(texto,null);
+        if(env?.ok)mostrarMensajePropio(texto,null,env);
+      }
+      toast("Tu cuenta todavía no figura habilitada. Ya le avisamos al operador.");
+      return;
+    }
     state.nivelAcceso="OK"; try{localStorage.setItem("bet300_nivel_acceso","OK");}catch(_e){}
     state.motivoSoporte=""; try{localStorage.removeItem("bet300_motivo_soporte");}catch(_e){}
+    // Venía a cargar (o retirar) y le faltaba validar: sigue ahí mismo, sin volver a empezar.
+    const que=despuesPendiente();
+    if(que){
+      despuesDeValidar("");
+      goChat();
+      guiaDecir("Listo, tu cuenta ya está validada. Seguimos 👇");
+      guiaCorrer(GUIA_DESPUES[que]);
+      return;
+    }
     try{ toggleWidget(false); }catch(_e){}
     goHome();
     toast("✅ ¡Listo! Ya podés operar.");
@@ -3505,6 +3587,7 @@ const GUIA_RAMAS={
 };
 const GUIA_INGRESO={
   login:{titulo:"Tus datos",usuario:"Tu usuario de la plataforma",ejemplo:"Ej: usuario123",boton:"Entrar"},
+  validar:{titulo:"Validá tu cuenta",usuario:"Tu usuario de la plataforma",ejemplo:"Ej: usuario123",boton:"Validar"},
   olvido:{titulo:"Te ayuda una persona",boton:"Pedir ayuda"},
   registro:{titulo:"Te creamos el usuario",usuario:"Tu nombre o apodo",ejemplo:"Ej: Juan",boton:"Registrarme"}
 };
@@ -3742,7 +3825,7 @@ function guiaFichaIngreso(){
     +'<label for="guiaTelefono">Tu teléfono, con código de área</label><input id="guiaTelefono" placeholder="Ej: 11 2345 6789" inputmode="tel" autocomplete="tel" value="'+esc(state.telefono||"")+'">'
     +'<div id="guiaError" class="guia-error" role="alert"></div>'
     +'<button type="submit" id="guiaEnviar" class="action-btn">'+d.boton+'</button>'
-    +'<div class="guia-enlaces">'+(modo==="login"?enlace("olvido","No me acuerdo el usuario")+enlace("registro","Soy nuevo"):enlace("login","Ya tengo usuario"))+'</div></form>',[],{sinPersona:true});
+    +'<div class="guia-enlaces">'+(modo==="login"||modo==="validar"?enlace("olvido","No me acuerdo el usuario")+enlace("registro","Soy nuevo"):enlace("login","Ya tengo usuario"))+'</div></form>',[],{sinPersona:true});
 }
 async function guiaEnviarIngreso(){
   const g=guiaCargar(),modo=g.ingreso?.modo||"login",boton=GUIA_INGRESO[modo].boton;
@@ -3751,12 +3834,13 @@ async function guiaEnviarIngreso(){
   let aviso="";
   try{
     const usuario=$("guiaUsuario")?.value||"",telefono=$("guiaTelefono")?.value||"";
-    const r=modo==="login"?await ingresarJugador(usuario,telefono):modo==="registro"?pedirRegistroCon(usuario,telefono):pedirAyudaCon("",telefono);
+    const entra=modo==="login"||modo==="validar";
+    const r=entra?await ingresarJugador(usuario,telefono):modo==="registro"?pedirRegistroCon(usuario,telefono):pedirAyudaCon("",telefono);
     if(r.error)return guiaErrorFicha(r.error);
-    if(modo==="login"&&r.acceso){
+    if(entra&&r.acceso){
       guiaQuitarAccion();
       guiaDecir("Listo, <b>"+esc(state.usuario)+"</b>, ya te reconocí.");
-    }else aviso=modo==="login"?"validar":modo==="registro"?"registro":"ayuda";
+    }else aviso=entra?"validar":modo==="registro"?"registro":"ayuda";
     g.ingreso=null;guiaGuardar();
     startChatPoll();
   }catch(e){
@@ -3778,7 +3862,7 @@ async function guiaAvisarPersona(tipo){
   g.personaAt=Date.now();g.fallos=0;guiaGuardar();
   guiaDecir({registro:"Listo. Un operador te crea el usuario y te avisa por acá.",
     ayuda:"Listo, ya le pasé tus datos a una persona. Te contesta por acá.",
-    validar:"No te pude validar solo, así que ya le pasé tus datos a una persona. Apenas te habilite, te aparece el botón <b>Ingresar</b> acá mismo."}[tipo]);
+    validar:"No te pude validar solo, así que ya le pasé tus datos a una persona. Apenas te habilite, te aparece el botón <b>Ingresar</b> acá mismo"+(despuesPendiente()?" y te paso para "+GUIA_DESPUES_TXT[despuesPendiente()]:"")+"."}[tipo]);
   guiaOfrecer([],{sinPersona:true});
 }
 function guiaFalloEnvio(reintento){
@@ -3786,22 +3870,42 @@ function guiaFalloEnvio(reintento){
   g.fallos=(g.fallos||0)+1;
   guiaFallo(g.fallos>1?"Sigue sin salir. Fijate si tenés señal y probá otra vez.":"No pude mandarlo: se cortó la conexión.",reintento,{sinPersona:true});
 }
-function guiaPuedeOperar(){
-  if(state.nivelAcceso==="SOPORTE"){
-    guiaDecir(esc(state.motivoSoporte||"Todavía no pude validar tu cuenta."));
-    guiaOfrecer([{t:"Ya me activaron",hace:"revalidar"}]);
-    return false;
-  }
+// Antes de mostrar la cuenta o el formulario se le pregunta al servidor. Si falta validar, se le
+// piden los datos y, validado, se sigue con lo que quería: nunca ve la cuenta para transferir sin
+// poder pedir la carga después (Juan, 2/11).
+const GUIA_DESPUES={carga:()=>guiaFichaCarga(true),retiro:()=>guiaFichaRetiro(),clave:()=>guiaFichaClave()};
+const GUIA_DESPUES_TXT={carga:"cargar",retiro:"retirar",clave:"cambiar la clave"};
+async function guiaPuedeOperar(que){
   if(!state.pcCodigo){
     guiaDecir("No identifico a tu agente. Abrí el enlace que te pasó tu agente y volvé acá.");
     guiaOfrecer([]);
     return false;
   }
-  return true;
+  await vinculoPuedeOperar();
+  if(state.nivelAcceso!=="SOPORTE"){if(despuesPendiente()===que)despuesDeValidar("");return true;}
+  guiaFaltaValidar(que);
+  return false;
+}
+function guiaFaltaValidar(que){
+  despuesDeValidar(que);
+  const para=GUIA_DESPUES_TXT[que]||"operar";
+  // Ya se los pasó a una persona: no se le vuelven a pedir.
+  if(state._altaSoporteEnviado||guiaPersonaAvisada()){
+    guiaDecir("Tu cuenta todavía no está validada. Ya tiene tus datos una persona: apenas te habilite, te paso para "+para+".");
+    return guiaOfrecer([{t:"Ya me activaron",hace:"revalidar"}]);
+  }
+  const g=guiaCargar();
+  g.ingreso={modo:"validar",siguiente:GUIA_DESPUES[que]};
+  guiaDecir("Todavía falta validar tu cuenta. Completá estos datos y, apenas quede validada, te paso para "+para+" 👇");
+  guiaFichaIngreso();
 }
 async function guiaRevalidar(){
   await reintentarValidacion();
-  if(state.nivelAcceso!=="SOPORTE"){guiaDecir("Listo, ya estás adentro.");return guiaIr("inicio");}
+  if(state.nivelAcceso!=="SOPORTE"){
+    const que=despuesPendiente();
+    if(que){despuesDeValidar("");guiaDecir("Listo, tu cuenta ya está validada. Seguimos 👇");return GUIA_DESPUES[que]();}
+    guiaDecir("Listo, ya estás adentro.");return guiaIr("inicio");
+  }
   guiaDecir("Todavía no aparece activada. Apenas esté, te sale el botón <b>Ingresar</b> acá mismo.");
   guiaOfrecer([]);
 }
@@ -4032,9 +4136,9 @@ function guiaSolicitudEnCurso(){
   guiaDecir("Ya tenés "+(esRetiro?"un retiro":"una carga")+" en revisión. Cuando termine vas a poder pedir otra cosa.");
   guiaOfrecer([{t:"¿Cómo va?",hace:esRetiro?"retiroEstado":"noAparecio"}]);
 }
-function guiaTrasCrear(r){
+function guiaTrasCrear(r,que){
   startChatPoll();
-  if(r.motivo==="no_habilitado"){guiaErrorFicha("Tu usuario todavía no está habilitado para operar. Tocá Hablar con una persona y lo resuelven.");return false;}
+  if(r.motivo==="no_habilitado"){_vinculoOk=null;vinculoPuedeOperar().finally(()=>guiaFaltaValidar(que||"carga"));return false;}
   if(!r.ok){guiaErrorFicha("No pude mandar el pedido. Tus datos siguen acá: probá de nuevo.");return false;}
   if(r.porChat){
     guiaQuitarAccion();
@@ -4048,7 +4152,7 @@ function guiaTrasCrear(r){
   return true;
 }
 async function guiaFichaCarga(sinAviso){
-  if(!guiaPuedeOperar())return;
+  if(!await guiaPuedeOperar("carga"))return;
   if(await guiaHaySolicitudEnCurso())return guiaSolicitudEnCurso();
   const b=await obtenerBilletera();
   if(!b){
@@ -4080,7 +4184,7 @@ async function guiaEnviarCarga(){
     if(mal)return guiaErrorFicha(mal.aviso,"guiaTitular");
     if(await guiaHaySolicitudEnCurso())return guiaSolicitudEnCurso();
     const b=state.billetera||{},r=await crearSolicitudCarga(state.usuario,monto,titular,true);
-    if(!guiaTrasCrear(r))return;
+    if(!guiaTrasCrear(r,"carga"))return;
     guiaDarVuelta(guiaTicket({sub:"Apenas la veamos te la acreditamos.",estado:"Esperando que la revisen",filas:[
       ["Vas a cargar",_money(Number(monto))],["Transferiste a",b.alias||b.cbu||b.cvu],["A nombre de",b.titular],["Desde la cuenta de",titular],["N° de pedido","#"+r.solicitudId]]}));
     guiaDecir("Mandá el comprobante para que un operador revise la carga.");
@@ -4088,7 +4192,7 @@ async function guiaEnviarCarga(){
   }finally{_soltarEnvio("guiaEnviar","Ya transferí · Pedir la carga",true);}
 }
 async function guiaFichaRetiro(){
-  if(!guiaPuedeOperar())return;
+  if(!await guiaPuedeOperar("retiro"))return;
   if(await guiaHaySolicitudEnCurso())return guiaSolicitudEnCurso();
   const resto=retiroCooldownRestanteMs();
   if(resto>0){
@@ -4125,7 +4229,7 @@ async function guiaEnviarRetiro(){
     const resto=retiroCooldownRestanteMs();
     if(resto>0)return guiaErrorFicha("Ya pediste un retiro hoy. Podés pedir otro en "+_fmtRestante(resto)+".");
     const r=await crearSolicitudRetiro(state.usuario,monto,destino,titular,true);
-    if(!guiaTrasCrear(r))return;
+    if(!guiaTrasCrear(r,"retiro"))return;
     guiaDarVuelta(guiaTicket({sub:"Lo revisan y te lo transferimos.",estado:"Esperando que lo aprueben",filas:[
       ["Vas a retirar",_money(monto)],["Te lo mandamos a",destino],["A nombre de",titular],["N° de pedido","#"+r.solicitudId]]}));
     guiaOfrecer([]);
@@ -4133,8 +4237,8 @@ async function guiaEnviarRetiro(){
 }
 
 // ── Clave ────────────────────────────────────────────────────────────────────
-function guiaFichaClave(){
-  if(!guiaPuedeOperar())return;
+async function guiaFichaClave(){
+  if(!await guiaPuedeOperar("clave"))return;
   guiaDecir("Dale. Escribí la clave que quieras, o dejalo vacío y queda <b>12345a</b>.");
   guiaFicha('<form class="guia-ficha" novalidate onsubmit="event.preventDefault();guiaEnviarClave()"><label for="guiaClaveNueva">Clave nueva (opcional)</label>'
     +'<input id="guiaClaveNueva" placeholder="Mínimo 6, letras y números" autocomplete="off">'
