@@ -519,7 +519,7 @@ const PLATFORM_URL = "https://bet-300.pw";
 // Sello de versión a la vista. Sin esto no hay forma de saber si lo que se abrió es el portal
 // nuevo o la copia vieja que guardó el service worker en el teléfono. Se cambia a mano en cada
 // publicación, junto con la versión del sw.js.
-const PORTAL_VER="v2.1.14 · 01/11";
+const PORTAL_VER="v2.1.15 · 02/11";
 let sb=null;try{if(SUPABASE_ANON_KEY&&!SUPABASE_ANON_KEY.includes("PEGAR_"))sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY)}catch(e){console.warn(e)}
 
 const state={
@@ -1203,8 +1203,9 @@ function portalChatBetaRespuesta(res){
 async function pollPortalConversation(){
   if(!state.usuario||!$('widget')?.classList.contains('open'))return;
   const key=portalChatPreparar();
-  if(portalChatVuelo&&portalChatVuelo.key===key)return portalChatVuelo.promise;
-  const flight={key,promise:null};portalChatVuelo=flight;
+  // Una lectura colgada no frena las siguientes para siempre: a los 20 s se pide de nuevo.
+  if(portalChatVuelo&&portalChatVuelo.key===key&&Date.now()-portalChatVuelo.t<20000)return portalChatVuelo.promise;
+  const flight={key,promise:null,t:Date.now()};portalChatVuelo=flight;
   const current=()=>key===portalChatClave();
   portalChatSalud={...portalChatSalud,estado:'consultando',ultimoError:null};
   flight.promise=(async()=>{
@@ -1730,7 +1731,9 @@ async function _confirmarLimpiarPendiente(){
     }
   }
 
-  stopChatPoll();stopEstadoPoll();
+  // El chat sigue abierto: se sigue leyendo. Frenarlo acá dejaba al jugador sin ver lo que le
+  // escribían hasta cerrar y abrir el chat (Lourdes, 2/11).
+  stopEstadoPoll();
   olvidarSolicitud(true);
   if(eraRetiro){ try{localStorage.removeItem(_retiroKey());}catch(_e){} }
   toast(eraRetiro?"Retiro cancelado. Ya podés enviar uno nuevo.":"Solicitud cancelada. Ya podés enviar una nueva.");
@@ -2060,7 +2063,7 @@ function renderEstado(){
 function limpiarPendienteAprobado(obs){
   if(estadoFinalNotificado)return;
   estadoFinalNotificado=true;
-  stopEstadoPoll();stopChatPoll();
+  stopEstadoPoll();   // el chat se sigue leyendo (ver cancelar)
   const tipoFinal=state.pendingTipo||"CARGA";
   olvidarSolicitud(true); state.shownTexts=new Set();
   const esRetiro=tipoFinal==="RETIRO";
@@ -3056,7 +3059,6 @@ function plegarBilletera(card, plegar){
 function limpiarSolicitudAnteriorAntesDeNueva(conservarChat){
   stopEstadoPoll();estadoFinalNotificado=false;
   if(conservarChat){ olvidarSolicitud(false); return; }   // pedida desde el chat: la charla sigue
-  stopChatPoll();
   olvidarSolicitud(true);
 }
 
