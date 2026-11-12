@@ -356,7 +356,7 @@ input.prellenado{background:rgba(58,208,127,.07);border-color:rgba(58,208,127,.4
 #imgPreviewBar button{border:none;background:none;color:var(--muted);cursor:pointer;font-size:21px;line-height:1;padding:0 2px;flex-shrink:0}
 
 /* Toast */
-.toast{position:fixed;left:50%;bottom:calc(86px + var(--safe-b));transform:translateX(-50%) translateY(10px);z-index:60;background:#16161c;color:#fff;border:1px solid var(--line-2);box-shadow:0 16px 40px rgba(0,0,0,.6);padding:14px 18px;border-radius:12px;font-weight:800;font-size:13px;opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;max-width:320px;text-align:center}
+.toast{position:fixed;left:50%;bottom:calc(86px + var(--safe-b));transform:translateX(-50%) translateY(10px);z-index:100001;background:#16161c;color:#fff;border:1px solid var(--line-2);box-shadow:0 16px 40px rgba(0,0,0,.6);padding:14px 18px;border-radius:12px;font-weight:800;font-size:13px;opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;max-width:320px;text-align:center}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 
 /* ── Desktop: panel acotado a la derecha ────────────────────────────────── */
@@ -385,14 +385,17 @@ input.prellenado{background:rgba(58,208,127,.07);border-color:rgba(58,208,127,.4
 /* Asistente: lo que espera respuesta va siempre último, abajo del globo. */
 .guia-accion{width:100%;margin:2px 0 12px;perspective:1200px;flex-shrink:0}
 .guia-opciones{display:flex;flex-direction:column;gap:7px;max-width:90%}
-.guia-opciones button{font:inherit;font-size:14px;font-weight:600;text-align:left;min-height:44px;padding:10px 14px;border-radius:12px;cursor:pointer;
+.guia-opciones button,.guia-opciones a{font:inherit;font-size:14px;font-weight:600;text-align:left;min-height:44px;padding:10px 14px;border-radius:12px;cursor:pointer;
   background:transparent;border:1px solid var(--gold-deep);color:var(--gold-2);transition:background .15s}
-.guia-opciones button:hover{background:rgba(233,194,92,.1)}
-.guia-opciones button:active{transform:scale(.98)}
+.guia-opciones a{display:flex;align-items:center;text-decoration:none}
+.guia-opciones button:hover,.guia-opciones a:hover{background:rgba(233,194,92,.1)}
+.guia-opciones button:active,.guia-opciones a:active{transform:scale(.98)}
+.guia-opciones a.whatsapp{border-color:var(--green);color:var(--green)}
+.guia-opciones a.whatsapp:hover{background:var(--green-soft)}
 .guia-opciones button.humano{border-color:var(--line-2);color:#c9ccd8}
 .guia-opciones button.volver{border-color:transparent;color:var(--muted);min-height:38px;padding:6px 14px;font-weight:600}
 .con-ficha .guia-opciones{margin-top:9px}
-.guia-opciones button:focus-visible,.chat-help-actions button:focus-visible,.guia-dato:focus-visible,.guia-enlaces button:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+.guia-opciones button:focus-visible,.guia-opciones a:focus-visible,.chat-help-actions button:focus-visible,.guia-dato:focus-visible,.guia-enlaces button:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
 .guia-puntos{display:inline-flex;gap:5px;padding:12px 14px;background:var(--surface-2);border:1px solid var(--line-2);border-radius:14px;border-bottom-left-radius:5px}
 .guia-puntos i{width:7px;height:7px;border-radius:50%;background:var(--muted);animation:guiaPunto 1s infinite ease-in-out}
 .guia-puntos i:nth-child(2){animation-delay:.15s}.guia-puntos i:nth-child(3){animation-delay:.3s}
@@ -519,12 +522,14 @@ const PLATFORM_URL = "https://bet-300.pw";
 // Sello de versión a la vista. Sin esto no hay forma de saber si lo que se abrió es el portal
 // nuevo o la copia vieja que guardó el service worker en el teléfono. Se cambia a mano en cada
 // publicación, junto con la versión del sw.js.
-const PORTAL_VER="v2.1.18 · 02/11";
+const PORTAL_VER="v2.1.19 · 12/11";
 let sb=null;try{if(SUPABASE_ANON_KEY&&!SUPABASE_ANON_KEY.includes("PEGAR_"))sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY)}catch(e){console.warn(e)}
 
 const state={
   publicCode:(new URLSearchParams(location.search).get("r")||"").trim() || localStorage.getItem("bet300_public_code") || "",
   pcCodigo:null,
+  // El WhatsApp de la oficina, listo para wa.me. null: todavía no se preguntó. "": no tiene.
+  whatsappOficina:null,
   usuario:localStorage.getItem("bet300_usuario")||"",
   telefono:localStorage.getItem("bet300_telefono")||"",
   nivelAcceso:localStorage.getItem("bet300_nivel_acceso")||"",
@@ -624,6 +629,7 @@ function _fijarOficina(code){
     }
     localStorage.setItem("bet300_public_code", nueva);
   }catch(_e){}
+  if(state.publicCode !== nueva) state.whatsappOficina = null;   // el de la oficina anterior no sirve
   state.publicCode = nueva;
 }
 function _marcarToque(){ _toqueMs=Date.now(); }
@@ -660,7 +666,10 @@ function tiempoEspera(){
   const hs=Math.round(mins/60);
   return `Hace ${hs} hora${hs>1?"s":""}`;
 }
-function toast(t){const el=$("toast");el.textContent=t;el.classList.add("show");setTimeout(()=>el.classList.remove("show"),2400)}
+// El aviso va por ENCIMA de la burbuja de "Nuevo mensaje" (antes quedaba tapado y no se podía leer el
+// error, Juan 8/11) y dura según lo largo del texto: 2,4 s los cortos, hasta 7 s los largos.
+let _toastTimer=null;
+function toast(t){const el=$("toast");el.textContent=t;el.classList.add("show");clearTimeout(_toastTimer);_toastTimer=setTimeout(()=>el.classList.remove("show"),Math.min(7000,Math.max(2400,String(t||"").length*55)))}
 
 // Abre la plataforma en una pestaña propia (first-party) → las imágenes cargan en TODOS los
 // navegadores. Dentro del iframe es contenido de terceros y Safari/Samsung/Firefox le cortan la
@@ -727,6 +736,7 @@ window.addEventListener("online",()=>{
 const SCREENS=["home","carga","retiro","clave","estado","chat"];
 function showScreen(name){
   state.screen=name;
+  if(name!=="estado"){try{stopHistPoll();}catch(_e){}}
   SCREENS.forEach(s=>{const el=$("screen"+cap(s));if(el)el.classList.toggle("hidden",s!==name);});
   $("composeBox").classList.toggle("hidden",name!=="chat");
   if(name!=="chat")$("imgPreviewBar").classList.add("hidden");
@@ -797,6 +807,14 @@ function despuesPendiente(){
 }
 async function vinculoAntesDeOperar(que){
   if(!state.pcCodigo){toast("No identificamos tu agente. Abrí el enlace de tu agente o contactá a soporte.");return false;}
+  // 10/11: sin usuario ni teléfono, la barra de abajo abría Cargar vacío ("Validá tu usuario…") y el
+  // chat fallaba al pedir. Sin sesión se vuelve al ingreso, que es lo primero que hay que hacer.
+  if(!String(state.usuario||"").trim()||!String(state.telefono||"").trim()){
+    showScreen("home");renderHome();
+    toast("Primero ingresá tu usuario y teléfono.");
+    setTimeout(()=>{try{$("usuarioInicial")?.focus();}catch(_e){}},60);
+    return false;
+  }
   await vinculoPuedeOperar();
   if(state.nivelAcceso!=="SOPORTE"){if(despuesPendiente()===que)despuesDeValidar("");return true;}
   goChat();
@@ -1003,7 +1021,10 @@ async function confirmarIngresoValidado(usuario,telefono){
   if(telefono){ state.telefono=telefono; try{localStorage.setItem("bet300_telefono",telefono);}catch(_e){} }
   const btn=$("btnIngresarValidado"); if(btn){ btn.disabled=true; btn.textContent="Ingresando..."; }
   try{
-    const r=await rpc("landing_portal_resolver_vinculo",{p_pc_codigo:state.pcCodigo,p_usuario:state.usuario,p_telefono:state.telefono});
+    let r=await rpc("landing_portal_ingreso_v1",{p_pc_codigo:state.pcCodigo,p_usuario:state.usuario,p_telefono:state.telefono,p_origen:"CORREGIDO"});
+    if(r&&r.error&&/42883|PGRST202|function .* does not exist/i.test(String(r.error.message||r.error.code||""))){
+      r=await rpc("landing_portal_resolver_vinculo",{p_pc_codigo:state.pcCodigo,p_usuario:state.usuario,p_telefono:state.telefono});
+    }
     const d=normalize(r.data)||r.data||{};
     const verdict=d.verdict||"";
     // Conflicto DURO (los datos figuran con OTRA cuenta) → no forzamos: puede ser otra persona.
@@ -1531,7 +1552,10 @@ async function reintentarValidacion(){
   if(!state.usuario||!state.telefono){ state.usuario=""; renderHome(); return; }
   const b=$("revalBtn"); if(b){b.disabled=true;b.textContent="Validando...";}
   try{
-    const r=await rpc("landing_portal_resolver_vinculo",{p_pc_codigo:state.pcCodigo,p_usuario:state.usuario,p_telefono:state.telefono});
+    let r=await rpc("landing_portal_ingreso_v1",{p_pc_codigo:state.pcCodigo,p_usuario:state.usuario,p_telefono:state.telefono,p_origen:"REINTENTO"});
+    if(r&&r.error&&/42883|PGRST202|function .* does not exist/i.test(String(r.error.message||r.error.code||""))){
+      r=await rpc("landing_portal_resolver_vinculo",{p_pc_codigo:state.pcCodigo,p_usuario:state.usuario,p_telefono:state.telefono});
+    }
     const d=normalize(r.data)||r.data||{};
     const verdict=d.verdict||"";
     if(verdict==="CONFLICTO_TELEFONO"||verdict==="CONFLICTO_USUARIO"||verdict==="BLOQUEADO"){ toast("⚠️ "+(d.mensaje||"Contactá a soporte.")); return; }
@@ -1616,6 +1640,27 @@ function telefonoDiezDigitos(t){
   if(d.length>10&&d.startsWith("0"))d=d.slice(1);
   return d.length===10?d:"";
 }
+// El WhatsApp de la oficina como lo pide wa.me: 549 y los 10 números. Pasa por la misma regla, así que
+// un número mal cargado (le faltan números, trae el 15) queda vacío y no se ofrece el botón: mejor sin
+// botón que mandar al jugador a escribirle a otro.
+function normalizarWhatsApp(t){
+  const d=telefonoDiezDigitos(t);
+  return d?"549"+d:"";
+}
+// Viene con la ruta de la oficina, pero si la ruta salió del dominio propio esa respuesta no lo trae:
+// se pregunta recién cuando hace falta y una sola vez. Sin conexión no se guarda y se vuelve a probar.
+async function whatsappOficina(){
+  if(typeof state.whatsappOficina==="string")return state.whatsappOficina;
+  const ruta=state.publicCode;
+  if(!ruta)return "";
+  try{
+    const r=await rpc("landing_resolver_ruta_publica",{p_public_code:ruta});
+    if(r.error)return "";
+    const numero=normalizarWhatsApp(normalize(r.data)?.whatsapp_numero);
+    if(state.publicCode===ruta)state.whatsappOficina=numero;   // si cambió de oficina en el medio, no
+    return numero;
+  }catch(_e){return "";}
+}
 function pedirRegistroCon(nombre,telefono){
   nombre=String(nombre||"").trim();
   telefono=String(telefono||"").trim();
@@ -1677,7 +1722,10 @@ async function ingresarJugador(usuarioRaw,telefonoRaw){
 
   let d={};
   try{
-    const r=await rpc("landing_portal_resolver_vinculo",{p_pc_codigo:state.pcCodigo,p_usuario:usuario,p_telefono:telefono});
+    let r=await rpc("landing_portal_ingreso_v1",{p_pc_codigo:state.pcCodigo,p_usuario:usuario,p_telefono:telefono,p_origen:"FORMULARIO"});
+    if(r&&r.error&&/42883|PGRST202|function .* does not exist/i.test(String(r.error.message||r.error.code||""))){
+      r=await rpc("landing_portal_resolver_vinculo",{p_pc_codigo:state.pcCodigo,p_usuario:usuario,p_telefono:telefono});
+    }
     d=normalize(r.data)||r.data||{};
     if(r.error){ console.warn("[vinculo]",r.error); d={verdict:"ERROR"}; }
   }catch(e){ console.warn("[vinculo]",e); d={verdict:"ERROR"}; }
@@ -2142,6 +2190,12 @@ function renderEstado(){
       </div>
       <div id="histUsuario"></div>`;
   }
+  if(String(state.pendingTipo||"").toUpperCase()==="RETIRO"&&state._retiroPendienteValidacion){
+    const h=s.querySelector(".estado-h"),sub=s.querySelector(".estado-sub"),tx=s.querySelector(".estado-tx");
+    if(h)h.textContent="Verificando titularidad con el banco";
+    if(sub)sub.textContent="Verificación por única vez para esta cuenta";
+    if(tx)tx.textContent="Estamos confirmando que el DNI coincida con el titular. Puede demorar unos minutos; te avisamos por acá cuando termine.";
+  }
   pintarHistorialUsuario();
   startHistPoll();
   // El teléfono puede estar desactualizado en los dos sentidos: creer que no hay nada cuando
@@ -2200,6 +2254,21 @@ async function consultarEstadoSolicitud(mostrarMensaje=true){
   });
   if(res.error){if(mostrarMensaje)toast("No pude consultar el estado ahora.");return null;}
   const d=normalize(res.data)||res.data||{};
+  if(String(state.pendingTipo||"").toUpperCase()==="RETIRO"){
+    try{
+      const protocolo=await _consultarRetiroProtocolo(false),ultima=protocolo&&protocolo.ultima_solicitud;
+      if(protocolo.mode==="beta"&&ultima&&String(ultima.id)===String(sid)){
+        state._retiroPendienteValidacion=String(ultima.estado_validacion||"").toUpperCase()==="PENDIENTE";
+        state._retiroDniRechazado=String(ultima.codigo||"").toUpperCase()==="DNI_MISMATCH";
+        if(state._retiroPendienteValidacion){
+          const box=$("screenEstado"),h=box&&box.querySelector(".estado-h"),sub=box&&box.querySelector(".estado-sub"),tx=box&&box.querySelector(".estado-tx");
+          if(h)h.textContent="Verificando titularidad con el banco";
+          if(sub)sub.textContent="Verificación por única vez para esta cuenta";
+          if(tx)tx.textContent="Estamos confirmando que el DNI coincida con el titular. Puede demorar unos minutos; te avisamos por acá cuando termine.";
+        }
+      }
+    }catch(_e){}
+  }
   if(d.ok===false){setEstadoLive("⏳ En verificación");return "PENDIENTE";}
   const estado=estadoNormalizado(d.estado||d.status||d.estado_solicitud);
   // Motivo del rechazo: la RPC landing_estado_solicitud_segura lo devuelve en `mensaje` cuando el
@@ -2218,6 +2287,7 @@ async function consultarEstadoSolicitud(mostrarMensaje=true){
     stopEstadoPoll();
     rechazadoStreak=0;
     const eraRetiro = String(state.pendingTipo||"").toUpperCase()==="RETIRO";
+    const esRechazoDni=eraRetiro&&(state._retiroDniRechazado||/DNI_MISMATCH|DNI[^<]{0,40}no coincide|titularidad[^<]{0,40}no pudo confirm/i.test(obs));
     olvidarSolicitud(false);
     // Retiro rechazado/cancelado por el operador → no se efectuó → liberar el cooldown de 24h.
     if(eraRetiro){ try{localStorage.removeItem(_retiroKey());}catch(_e){} }
@@ -2227,8 +2297,14 @@ async function consultarEstadoSolicitud(mostrarMensaje=true){
         <div class="estado-ico">⚠️</div>
         <div class="estado-h">Tu solicitud no pudo procesarse</div>
         ${obs?`<div class="estado-tx">${escMsg(obs)}</div>`:`<div class="estado-tx">Escribinos por el chat y un operador te ayuda.</div>`}
-        <div class="estado-actions"><button class="action-btn" onclick="goChat()">💬 Consultar</button><button class="action-btn secondary-btn" onclick="goCarga()">Nueva carga</button></div>
+        <div class="estado-actions"><button class="action-btn" onclick="goChat()">💬 Consultar</button>${eraRetiro?'<button class="action-btn secondary-btn" onclick="goRetiro()">Nuevo retiro</button>':'<button class="action-btn secondary-btn" onclick="goCarga()">Nueva carga</button>'}</div>
       </div>`;
+    if(esRechazoDni&&s){
+      const h=s.querySelector(".estado-h"),tx=s.querySelector(".estado-tx"),actions=s.querySelector(".estado-actions");
+      if(h)h.textContent="No pudimos confirmar la titularidad";
+      if(tx)tx.textContent="El DNI no coincidió con el titular de la cuenta. No se descontaron fichas. Revisá que la cuenta donde cobrás esté a tu nombre y corregí los datos de cobro.";
+      if(actions)actions.innerHTML='<button class="action-btn" onclick="corregirDatosRetiroDesdeEstado()">Corregir datos de cobro</button><button class="action-btn secondary-btn" onclick="goChat()">Chat</button>';
+    }
     try{ pintarHistorialUsuario(); }catch(_e){}   // el rechazo (con su motivo) ya figura en el historial
     renderHome();
     if($("widget")?.classList.contains("open"))showScreen("estado");
@@ -2388,7 +2464,7 @@ async function initRoute(){
     state.publicCode = MODO_PRUEBA.ruta;
     const rp = await rpc("landing_resolver_ruta_publica",{p_public_code:state.publicCode});
     const filaP = rp.error ? null : normalize(rp.data);
-    if(filaP){ state.pcCodigo = filaP.pc_codigo||filaP.pc||filaP.codigo_pc||null; }
+    if(filaP){ state.pcCodigo = filaP.pc_codigo||filaP.pc||filaP.codigo_pc||null; state.whatsappOficina = normalizarWhatsApp(filaP.whatsapp_numero); }
     console.log("[BET300 PRUEBAS]", MODO_PRUEBA.oficina, state.publicCode, "->", state.pcCodigo);
     return;                       // sin mudanza de dominio: te quedás donde estás
   }
@@ -2410,7 +2486,7 @@ async function initRoute(){
   if(!state.publicCode){ state.pcCodigo=null; console.warn("[BET300] sin ruta de agente"); return; }
   const r=await rpc("landing_resolver_ruta_publica",{p_public_code:state.publicCode});
   const row = r.error ? null : normalize(r.data);
-  if(row){ state.pcCodigo=row.pc_codigo||row.pc||row.codigo_pc||null; }
+  if(row){ state.pcCodigo=row.pc_codigo||row.pc||row.codigo_pc||null; state.whatsappOficina=normalizarWhatsApp(row.whatsapp_numero); }
 
   try{
     const propio = String(row && row.host || "").trim().toLowerCase();
@@ -2763,19 +2839,34 @@ function inferirTipoBilletera(b){
   if(raw.includes("BANCO"))return "Banco";
   return "Billetera";
 }
+// 10/11: paolagoats2 (P4) vio "Sin billetera disponible" con 13 billeteras activas en su oficina: el
+// pedido no llegó al servidor (conexión del celular) y el Portal trataba igual un error que una
+// oficina sin cuentas. Ahora reintenta, y deja en state.billeteraFallo si lo que pasó fue un error.
+async function _rpcBilletera(fn,params){
+  try{return await rpc(fn,params);}catch(e){return {data:null,error:e||{message:"fetch failed"}};}
+}
 async function obtenerBilletera(){
   const pcs=[state.pcCodigo].map(v=>String(v||"").trim().toUpperCase()).filter(Boolean);
-  for(const pc of [...new Set(pcs)]){
-    const segura=await rpc("landing_obtener_billetera_segura",{
-      p_validacion_usuario_id:Number(localStorage.getItem("bet300_validacion_id")||0),
-      p_usuario:state.usuario||"",p_nombre_completo:state.usuario||"",
-      p_telefono:state.telefono||"",p_dni:"",p_pc_codigo:pc
-    });
-    if(!segura.error&&segura.data&&segura.data.length){state.billetera=normalize(segura.data)||segura.data[0];return state.billetera;}
-    const publica=await rpc("landing_obtener_billetera",{p_pc_codigo:pc});
-    if(!publica.error&&publica.data&&publica.data.length){state.billetera=normalize(publica.data)||publica.data[0];return state.billetera;}
+  let fallo=!pcs.length;
+  for(let intento=0;intento<3;intento++){
+    if(intento)await new Promise(r=>setTimeout(r,700*intento));
+    fallo=!pcs.length;
+    for(const pc of [...new Set(pcs)]){
+      const segura=await _rpcBilletera("landing_obtener_billetera_segura",{
+        p_validacion_usuario_id:Number(localStorage.getItem("bet300_validacion_id")||0),
+        p_usuario:state.usuario||"",p_nombre_completo:state.usuario||"",
+        p_telefono:state.telefono||"",p_dni:"",p_pc_codigo:pc
+      });
+      if(!segura.error&&segura.data&&segura.data.length){state.billetera=normalize(segura.data)||segura.data[0];state.billeteraFallo=false;return state.billetera;}
+      if(segura.error)fallo=true;
+      const publica=await _rpcBilletera("landing_obtener_billetera",{p_pc_codigo:pc});
+      if(!publica.error&&publica.data&&publica.data.length){state.billetera=normalize(publica.data)||publica.data[0];state.billeteraFallo=false;return state.billetera;}
+      if(publica.error)fallo=true;
+    }
+    // Contestó y no hay cuenta: reintentar no cambia nada.
+    if(!fallo)break;
   }
-  state.billetera=null;return null;
+  state.billetera=null;state.billeteraFallo=fallo;return null;
 }
 function billeteraPayloadPlano(){
   const b=state.billetera||{};
@@ -2965,6 +3056,22 @@ function titularRestaurarPrevio(){
   _titularAviso(el,"");
   _titularPieGuardado();
 }
+// 10/11: el Portal volvía a proponer un titular que el operador ya había bloqueado para esa cuenta
+// (o que es el alias de la cuenta del cajero), y recién al apretar Enviar decía "no se puede usar".
+// Antes de dejarlo puesto se pregunta al servidor; si está bloqueado se borra de este teléfono y el
+// campo queda vacío, pidiendo el nombre real. Sin respuesta del servidor se deja como estaba.
+async function _titularPrevioRevisar(el){
+  const previo=String(el&&el.value||"").trim();
+  if(!el||!previo)return;
+  const b=await _titularBloqueado(previo);
+  if(!b||String(el.value||"").trim()!==previo)return;
+  try{ localStorage.removeItem(_TITULAR_PREV_KEY); }catch(_e){}
+  el.value=""; el.classList.remove("prellenado"); el.dataset.previo="";
+  const btn=$("titularCambiar"); if(btn) btn.style.display="none";
+  const pie=$(el.id==="guiaTitular"?"guiaAvisoTitular":"titularPie");
+  const msg='Escribí el <b>nombre y apellido</b> de quien es la cuenta desde la que transferiste. El que usaste la vez pasada no sirve.';
+  if(pie){ pie.innerHTML=msg; pie.style.display="block"; }
+}
 function _titularPieGuardado(){
   const pie=$("titularPie");
   if(pie) pie.innerHTML='✓ Guardado · es el titular que usaste la vez pasada. Si transferiste desde otra cuenta, tocá <b>Cambiar</b>.';
@@ -3010,6 +3117,7 @@ function renderCarga(){
     _elT.value=_prev; _elT.classList.add("prellenado"); _elT.dataset.previo=_prev;
     const _b=$("titularCambiar"); if(_b) _b.style.display="";
     _titularPieGuardado();
+    _titularPrevioRevisar(_elT);
   }
 }
 function setMonto(v){const i=$("cargaMonto");if(i){i.value=v;haptic(6);syncChips();}}
@@ -3026,6 +3134,14 @@ async function cargarBilleteraEnSlot(){
     state.lastBilleteraSignature="";return;
   }
   const b=await obtenerBilletera();
+  // Si fue un error (no llegó al servidor), no se le pide nada: sigue probando solo mientras la
+  // pantalla de carga esté abierta.
+  if(!b&&state.billeteraFallo){
+    slot.innerHTML=`<div class="muted-line">Cargando los datos para transferir…</div>`;state.lastBilleteraSignature="";
+    clearTimeout(state._billeteraReintento);
+    state._billeteraReintento=setTimeout(()=>{if($("billeteraSlot")===slot&&document.body.contains(slot))cargarBilleteraEnSlot();},4000);
+    return;
+  }
   if(!b){slot.innerHTML=`<div class="muted-line">Sin billetera disponible por ahora. Consultá por soporte.</div>`;state.lastBilleteraSignature="";return;}
   const sig=billeteraSignature(b);
   if(sig && sig===state.lastBilleteraSignature && slot.querySelector(".transfer-card")) return; // misma billetera y ya está pintada → no re-render (antiparpadeo)
@@ -3166,10 +3282,8 @@ async function crearSolicitudCarga(usuario,monto,titular,conservarChat){
   const payload={usuario,monto:Number(monto),titular,telefono:state.telefono||"",pc_codigo:state.pcCodigo,public_code:state.publicCode,host:location.host,navegador:_infoNavegador(),ip:_ip||"",tipo:"CARGA",...bp,..._marcaDeTiempo()};
   const destino=bp.billetera_nombre?`${bp.billetera_nombre}${bp.billetera_alias?" · "+bp.billetera_alias:""}`:null;
   let res=await rpc("landing_portal_v16_crear_solicitud",{p_public_code:state.publicCode,p_usuario:usuario,p_tipo:"CARGA",p_monto:Number(monto),p_titular:titular,p_destino:destino,p_mensaje:"Solicitud de CARGA: $"+monto+" · Titular: "+titular,p_metadata:payload});
-  // Rechazo por validación de vínculo → NO usar fallback (sería un bypass). Mandamos a soporte.
+  // Rechazo por validación de vínculo o corte por demora → NO disparar funciones viejas en cadena (duplicaban pedidos).
   if(res.error && /VINCULO_NO_VALIDO|NO_AUTORIZADO|NO_REGISTRADO|CONFLICTO|BLOQUEADO/i.test(res.error.message||""))return {ok:false,motivo:"no_habilitado"};
-  if(res.error){console.warn("[V18]",res.error);res=await rpc("landing_crear_solicitud_v3_blindado",{p_public_code:state.publicCode,p_usuario:usuario,p_tipo:"CARGA",p_monto:Number(monto),p_titular:titular,p_comprobante_url:null,p_extra:payload});}
-  if(res.error){res=await rpc("landing_crear_chat_v2_blindado",{p_public_code:state.publicCode,p_usuario:usuario,p_mensaje:"Solicitud de CARGA: $"+monto+" · Titular: "+titular,p_tipo:"CARGA",p_extra:payload});}
   if(res.error)return {ok:false,motivo:"sin_envio"};
   const data=normalize(res.data)||res.data||{};
   const solicitudId=data?.solicitud_id||data?.id||data?.solicitudId||"";
@@ -3244,63 +3358,193 @@ function renderRetiro(){
 // Traer el CBU y el titular del último retiro y dejarlos puestos. Antes había que tipear los
 // dos de memoria cada vez, o irlos a buscar a otra app con el portal abierto. Los campos
 // quedan EDITABLES y se avisa de dónde salieron: si cobra en otra cuenta, los cambia y listo.
-async function leerDatosRetiro(){
+function _retiroRpcInexistente(error){
+  const code=String(error&&error.code||"").toUpperCase(),msg=String(error&&error.message||"");
+  return code==="PGRST202"||code==="42883"||(/landing_portal_retiro_contexto_v1/i.test(msg)&&/does not exist|not found|could not find/i.test(msg));
+}
+async function _consultarRetiroProtocolo(forzar){
+  const key=[state.publicCode||"",state.usuario||"",state.telefono||"",location.host||""].join("|");
+  const cache=state._retiroProtocoloCache;
+  if(!forzar&&cache&&cache.key===key&&Date.now()-cache.at<30000)return cache.value;
+  let result;
   try{
-    const r = await rpc("landing_datos_retiro", {
-      p_usuario: state.usuario||"", p_telefono: state.telefono||"",
-      p_public_code: state.publicCode||""
+    const r=await rpc("landing_portal_retiro_contexto_v1",{
+      p_public_code:state.publicCode||"",p_usuario:state.usuario||"",
+      p_telefono:state.telefono||"",p_host:location.host||""
     });
-    const d = r.error ? null : (normalize(r.data) || (Array.isArray(r.data)?r.data[0]:r.data) || null);
-    if(!d || !String(d.destino||"").trim()) return null;
+    if(r.error){
+      result=_retiroRpcInexistente(r.error)?{mode:"legacy"}:{mode:"error",code:"RETIRO_CONTEXTO_NO_DISPONIBLE"};
+    }else{
+      const d=normalize(r.data)||r.data||{};
+      if(d.ok!==true||d.contract!=="retiro.instrumentos.v1"||typeof d.enabled!=="boolean")
+        result={mode:"error",code:"RETIRO_CONTEXTO_RESPUESTA_INVALIDA"};
+      else result=Object.assign({},d,{mode:d.enabled?"beta":"legacy"});
+    }
+  }catch(_e){result={mode:"error",code:"RETIRO_CONTEXTO_NO_DISPONIBLE"};}
+  state._retiroProtocolo=result;
+  state._retiroProtocoloCache={key:key,at:Date.now(),value:result};
+  return result;
+}
+async function _leerDatosRetiroAnterior(){
+  try{
+    const r=await rpc("landing_datos_retiro",{
+      p_usuario:state.usuario||"",p_telefono:state.telefono||"",p_public_code:state.publicCode||""
+    });
+    const d=r.error?null:(normalize(r.data)||(Array.isArray(r.data)?r.data[0]:r.data)||null);
+    if(!d||!String(d.destino||"").trim())return null;
     return {destino:String(d.destino||"").trim(),titular:String(d.titular||"").trim()};
-  }catch(_e){ return null; }
+  }catch(_e){return null;}
+}
+async function leerDatosRetiro(){
+  const protocolo=await _consultarRetiroProtocolo(false);
+  if(protocolo.mode==="error")return {error:true,protocolo:protocolo};
+  if(protocolo.mode==="beta"&&protocolo.instrumento){
+    const i=protocolo.instrumento;
+    return {destino:String(i.destino||"").trim(),titular:String(i.titular||"").trim(),beta:true,validado:true,protocolo:protocolo};
+  }
+  const anterior=await _leerDatosRetiroAnterior();
+  if(protocolo.mode==="beta")return Object.assign({beta:true,validado:false,protocolo:protocolo},anterior||{});
+  return anterior;
+}
+function _mostrarDniRetiro(destino){
+  const caja=$(destino||"retiroDatosPrevios");
+  if(!caja)return;
+  caja.innerHTML='<div class="retiro-validacion-aviso" style="margin:8px 0;padding:10px 12px;border:1px solid #31506a;border-radius:10px;background:#101d29;color:#d7e8f5">'
+    // Juan, 8/11: lo anterior ("Verificación de titularidad…") era "muy brusco". Simple, como lo dijo él.
+    +'Para la seguridad de tu cuenta y de tus fichas, necesitamos verificar con tu DNI que el usuario es tuyo. Es una sola vez.'
+    +'</div><label for="'+(destino==="guiaDniWrap"?"guiaDni":"retiroDni")+'">Tu DNI (sin puntos)</label>'
+    +'<input id="'+(destino==="guiaDniWrap"?"guiaDni":"retiroDni")+'" type="text" inputmode="numeric" autocomplete="off" maxlength="8" placeholder="Ej: 38495012" oninput="this.value=this.value.replace(/\\D/g,\'\').slice(0,8)" required>';
+}
+// Juan, 8/11: "creemos que sos menor por tu dni, ingresá tu edad". Aparece debajo del DNI sólo cuando el
+// servidor lo pide (el rango de edad del DNI incluye menores), y no borra lo que ya escribió.
+function _mostrarEdadRetiro(destino){
+  const caja=$(destino||"retiroDatosPrevios");
+  const id=destino==="guiaDniWrap"?"guiaEdad":"retiroEdad";
+  if(!caja)return null;
+  if(!$(id)){
+    caja.insertAdjacentHTML("beforeend",'<div class="retiro-edad-aviso" style="margin:10px 0 6px;padding:10px 12px;border:1px solid #6b5a1f;border-radius:10px;background:#1f1a0b;color:#f3e3b0">'
+      // Texto de Juan (8/11). Recuerda también que el DNI tiene que ser el de la cuenta donde cobra.
+      +'Tu DNI parece ser el de un menor de edad. Verificá que el DNI ingresado sea el mismo que el de la cuenta que utilizás para retirar y que no sea de un menor. '
+      +'Si no sos menor, ingresá tu edad para afinar el sistema de detección.</div>'
+      +'<label for="'+id+'">Tu edad</label>'
+      +'<input id="'+id+'" type="text" inputmode="numeric" autocomplete="off" maxlength="3" placeholder="Ej: 25" oninput="this.value=this.value.replace(/\\D/g,\'\').slice(0,3)">');
+  }
+  const el=$(id);
+  try{el.scrollIntoView({block:"center",behavior:"smooth"});el.focus({preventScroll:true});}catch(_e){}
+  return el;
+}
+function cambiarCuentaRetiro(){
+  const p=state._retiroProtocolo;
+  if(!p||p.mode!=="beta")return;
+  p.cambiarCuenta=true;
+  const elD=$("retiroDestino"),elT=$("retiroTitular"),box=$("retiroDatosPrevios");
+  [elD,elT].forEach(function(el){if(el){el.readOnly=false;el.disabled=false;el.style.display="";if(el.previousElementSibling)el.previousElementSibling.style.display="";}});
+  const aviso=$("avisoTitularRetiro");if(aviso)aviso.style.display="";
+  _mostrarDniRetiro("retiroDatosPrevios");
+  try{elD?.focus();}catch(_e){}
+}
+async function corregirDatosRetiroDesdeEstado(){
+  // El botón aparece después de un rechazo beta. Volvemos a consultar antes de abrir el formulario:
+  // una respuesta cacheada o un Portal legacy no debe presentar como disponible una ruta apagada.
+  const protocolo=await _consultarRetiroProtocolo(true);
+  if(!protocolo||protocolo.mode!=="beta"){
+    toast("No pudimos abrir la corrección de la cuenta. Probá de nuevo en unos minutos.");
+    return false;
+  }
+  protocolo.cambiarCuenta=true;
+  state._retiroProtocolo=protocolo;
+  showScreen("retiro");
+  renderRetiro();
+  return true;
 }
 async function _rellenarDatosRetiro(){
-  const cajaAviso = $("retiroDatosPrevios");
-  const elD = $("retiroDestino"), elT = $("retiroTitular");
-  if(!elD || !elT) return;
-  // Si la persona ya empezó a escribir, no se le pisa nada.
-  if(String(elD.value||"").trim() || String(elT.value||"").trim()) return;
-  const d = await leerDatosRetiro();
-  if(!d) return;
-
-  elD.value = d.destino;
-  elT.value = d.titular;
-  try{ onTitularInput(elT); }catch(_e){}
-  if(cajaAviso){
-    cajaAviso.innerHTML = '<div class="retiro-previos">'
-      + 'Pusimos los datos de tu último retiro. <b>Si cobrás en otra cuenta, cambialos.</b>'
-      + '</div>';
+  const cajaAviso=$("retiroDatosPrevios"),elD=$("retiroDestino"),elT=$("retiroTitular"),btn=$("btnEnviarRetiro");
+  if(!elD||!elT)return;
+  if(btn){btn.disabled=true;btn.textContent="Consultando cuenta...";}
+  const d=await leerDatosRetiro();
+  if(d&&d.error){
+    if(cajaAviso)cajaAviso.innerHTML='<div class="guia-error" role="alert">No pudimos comprobar si la cuenta está habilitada. Probá de nuevo en unos minutos.</div>';
+    if(btn){btn.disabled=true;btn.textContent="No disponible";}
+    return;
   }
+  if(!d){
+    if(btn){btn.disabled=false;btn.textContent="Enviar retiro a revisión";}
+    return;
+  }
+  elD.value=d.destino||elD.value||"";elT.value=d.titular||elT.value||"";
+  try{onTitularInput(elT);}catch(_e){}
+  if(d.beta&&d.validado&&!state._retiroProtocolo.cambiarCuenta){
+    [elD,elT].forEach(function(el){el.readOnly=true;el.style.display="none";if(el.previousElementSibling)el.previousElementSibling.style.display="none";});
+    const aviso=$("avisoTitularRetiro");if(aviso)aviso.style.display="none";
+    if(cajaAviso)cajaAviso.innerHTML='<div class="retiro-previos" style="margin:8px 0;padding:12px;border:1px solid #31506a;border-radius:10px">'
+      +'<b>Cuenta de cobro verificada</b><br>'+esc(d.destino)+' · '+esc(d.titular)+'<br><span>La titularidad ya fue confirmada para esta cuenta.</span></div>'
+      +'<button type="button" class="link-btn" onclick="cambiarCuentaRetiro()">Cambiar cuenta de cobro</button>';
+  }else if(d.beta){
+    [elD,elT].forEach(function(el){el.readOnly=false;el.style.display="";if(el.previousElementSibling)el.previousElementSibling.style.display="";});
+    _mostrarDniRetiro("retiroDatosPrevios");
+  }else if(cajaAviso&&(d.destino||d.titular)){
+    cajaAviso.innerHTML='<div class="retiro-previos">Pusimos los datos de tu último retiro. <b>Si cobrás en otra cuenta, cambialos.</b></div>';
+  }
+  if(btn){btn.disabled=false;btn.textContent="Enviar retiro a revisión";}
 }
 
 // Crea el retiro y devuelve qué pasó. Es la única función del Portal que crea retiros: la usan la
 // pantalla Retirar y la ficha del chat.
-async function crearSolicitudRetiro(usuario,monto,destino,titular,conservarChat){
-  limpiarSolicitudAnteriorAntesDeNueva(conservarChat);
+async function crearSolicitudRetiro(usuario,monto,destino,titular,conservarChat,dni,edad){
   const msg="Solicitud de RETIRO: $"+monto+" · Destino: "+destino+" · Titular: "+titular;
   const _ipR=await _ipPublica();
   const payload={usuario,monto,destino,titular,telefono:state.telefono||"",pc_codigo:state.pcCodigo,public_code:state.publicCode,host:location.host,navegador:_infoNavegador(),ip:_ipR||"",tipo:"RETIRO",..._marcaDeTiempo()};
-  let res=await rpc("landing_portal_v16_crear_solicitud",{
-    p_public_code:state.publicCode,p_usuario:usuario,p_tipo:"RETIRO",
-    p_monto:monto,p_titular:titular,p_destino:destino,p_mensaje:msg,p_metadata:payload
-  });
-  if(res.error && /VINCULO_NO_VALIDO|NO_AUTORIZADO|NO_REGISTRADO|CONFLICTO|BLOQUEADO/i.test(res.error.message||""))return {ok:false,motivo:"no_habilitado"};
-  if(res.error){
-    console.warn("[V18] retiro v16 falló",res.error);
-    res=await rpc("landing_crear_solicitud_v3_blindado",{
+  // La edad sólo viaja si el servidor la pidió (DNI cuyo rango de edad incluye menores).
+  if(edad)payload.edad_declarada=String(edad);
+  const protocolo=await _consultarRetiroProtocolo(false);
+  if(protocolo.mode==="error")return {ok:false,motivo:"protocolo_no_disponible"};
+  let dataR=null;
+  if(protocolo.mode==="beta"){
+    const instrumento=protocolo.instrumento||null;
+    const requiereDni=!(instrumento&&String(instrumento.destino||"").trim().toUpperCase()===String(destino||"").trim().replace(/\s+/g,"").toUpperCase()
+      &&String(instrumento.titular||"").trim().toUpperCase()===String(titular||"").trim().replace(/\s+/g," ").toUpperCase())
+      ||!!protocolo.cambiarCuenta;
+    const dniLimpio=String(dni||"").replace(/\D/g,"");
+    // 7 u 8 números: los DNI más viejos tienen 7 y el servidor los acepta (antes el Portal los rechazaba).
+    if(requiereDni&& !/^\d{7,8}$/.test(dniLimpio))return {ok:false,motivo:"dni_requerido"};
+    const beta=await rpc("landing_portal_retiro_crear_v1",{
+      p_public_code:state.publicCode||"",p_usuario:usuario,p_telefono:state.telefono||"",
+      p_host:location.host||"",p_monto:monto,p_titular:titular,p_destino:destino,
+      p_dni:requiereDni?dniLimpio:null,p_metadata:payload
+    });
+    // Un error del servidor tiene que decir qué revisar, no sólo "no pudimos confirmar" (Juan, 8/11).
+    if(beta.error){
+      const em=String(beta.error.message||"");
+      if(/VINCULO_NO_VALIDO|NO_AUTORIZADO|NO_REGISTRADO|CONFLICTO|BLOQUEADO/i.test(em))return {ok:false,motivo:"no_habilitado"};
+      if(/RETIRO_DATOS_INVALIDOS/i.test(em))return {ok:false,motivo:"beta_validacion",mensaje:"Revisá los datos del retiro: el alias o CBU parece incompleto."};
+      return {ok:false,motivo:"beta_error"};
+    }
+    dataR=normalize(beta.data)||beta.data||{};
+    if(dataR.error_code){
+      // Por el DNI podría ser menor: el formulario muestra el campo de edad y se vuelve a enviar.
+      if(dataR.error_code==="EDAD_REQUERIDA")return {ok:false,motivo:"edad_requerida"};
+      const motivos={DNI_REQUERIDO:"Ingresá tu DNI, sin puntos.",
+        MENOR_DE_EDAD:"Para retirar tenés que ser mayor de 18 años. Si te equivocaste al escribir tu edad, corregila.",
+        DESTINO_INVALIDO:"Revisá el alias o CBU de destino: parece incompleto.",
+        DATOS_INVALIDOS:"Revisá el monto y el titular del retiro.",
+        EDAD_INVALIDA:"Revisá la edad que escribiste.",
+        DNI_INVALIDO:"Ese DNI no es válido. Revisalo.",
+        DNI_RECHAZADO_PREVIAMENTE:"Ese DNI ya fue rechazado. Revisá que sea el tuyo.",
+        RETIRO_EN_VALIDACION:"Esta cuenta ya tiene un retiro en verificación. Esperá el aviso antes de enviar otro."};
+      return {ok:false,motivo:"beta_validacion",mensaje:motivos[dataR.error_code]||"No pudimos registrar la cuenta de cobro."};
+    }
+    if(dataR.ok!==true||dataR.contract!=="retiro.instrumentos.v1"||dataR.enabled!==true
+       ||!/^\d+$/.test(String(dataR.solicitud_id||"")))return {ok:false,motivo:"beta_respuesta_invalida"};
+  }else{
+    let res=await rpc("landing_portal_v16_crear_solicitud",{
       p_public_code:state.publicCode,p_usuario:usuario,p_tipo:"RETIRO",
-      p_monto:monto,p_titular:titular,p_comprobante_url:null,p_extra:payload
+      p_monto:monto,p_titular:titular,p_destino:destino,p_mensaje:msg,p_metadata:payload
     });
+    if(res.error&&/VINCULO_NO_VALIDO|NO_AUTORIZADO|NO_REGISTRADO|CONFLICTO|BLOQUEADO/i.test(res.error.message||""))return {ok:false,motivo:"no_habilitado"};
+    if(res.error)return {ok:false,motivo:"sin_envio"};
+    dataR=normalize(res.data)||res.data||{};
   }
-  if(res.error){
-    res=await rpc("landing_crear_chat_v2_blindado",{
-      p_public_code:state.publicCode,p_usuario:usuario,
-      p_mensaje:msg,p_tipo:"RETIRO",p_extra:payload
-    });
-  }
-  if(res.error)return {ok:false,motivo:"sin_envio"};
-  const dataR=normalize(res.data)||res.data||{};
+  limpiarSolicitudAnteriorAntesDeNueva(conservarChat);
   const solicitudId=dataR?.solicitud_id||dataR?.id||dataR?.solicitudId||"";
   const chatId=dataR?.chat_id||dataR?.chatId||"";
   const chatToken=dataR?.chat_token||dataR?.chatToken||"";
@@ -3308,8 +3552,12 @@ async function crearSolicitudRetiro(usuario,monto,destino,titular,conservarChat)
   if(chatToken){state.chatToken=String(chatToken);localStorage.setItem("bet300_chat_token",state.chatToken);}
   if(!/^\d+$/.test(String(solicitudId||"")))return {ok:true,porChat:true};
   setPendiente("RETIRO",String(solicitudId));
+  state._retiroPendienteValidacion=dataR.estado_validacion==="PENDIENTE";
+  state._retiroDniRechazado=false;
   try{localStorage.setItem(_retiroKey(),String(Date.now()));}catch(_e){} // arranca el cooldown de 24h (1 retiro/día)
-  return {ok:true,solicitudId:String(solicitudId)};
+  if(state._retiroProtocolo){state._retiroProtocolo.cambiarCuenta=false;state._retiroProtocolo.correccion=false;}
+  state._retiroProtocoloCache=null;
+  return {ok:true,solicitudId:String(solicitudId),estadoValidacion:dataR.estado_validacion||"LEGACY"};
 }
 
 async function enviarSolicitudRetiro(){
@@ -3320,6 +3568,7 @@ async function enviarSolicitudRetiro(){
   const restRet=retiroCooldownRestanteMs();
   if(restRet>0)return toast("Ya solicitaste un retiro hoy. Podés pedir otro en "+_fmtRestante(restRet)+".");
   const usuario=state.usuario,montoRaw=$("retiroMonto")?.value.trim(),destino=$("retiroDestino")?.value.trim(),titular=$("retiroTitular")?.value.trim();
+  const dni=String($("retiroDni")?.value||"").replace(/\D/g,"");
   if(marcarFaltantes(["retiroMonto","retiroDestino","retiroTitular"])) return toast("Falta completar el campo marcado");
   const monto=Math.abs(Number(montoRaw));
   if(!monto||monto<=0)return toast("Ingresá un monto válido mayor a cero");
@@ -3333,14 +3582,34 @@ async function enviarSolicitudRetiro(){
     haptic(18);
     return toast("Revisá el titular");
   }
+  const protocolo=await _consultarRetiroProtocolo(false);
+  const instrumento=protocolo.instrumento||null;
+  const requiereDni=protocolo.mode==="beta"&&(!(instrumento
+    &&String(instrumento.destino||"").trim().toUpperCase()===String(destino||"").trim().replace(/\s+/g,"").toUpperCase()
+    &&String(instrumento.titular||"").trim().toUpperCase()===String(titular||"").trim().replace(/\s+/g," ").toUpperCase())
+    ||!!protocolo.cambiarCuenta);
+  if(protocolo.mode==="error")return toast("No pudimos comprobar la verificación de retiro. Probá de nuevo en unos minutos.");
+  if(requiereDni&&!/^\d{7,8}$/.test(dni)){ $("retiroDni")?.focus(); return toast("Ingresá tu DNI, sin puntos."); }
+  const edadEl=$("retiroEdad"),edad=edadEl?String(edadEl.value||"").replace(/\D/g,""):"";
+  if(edadEl&&!edad){ edadEl.focus(); return toast("Ingresá tu edad para seguir."); }
   const btn=$("btnEnviarRetiro");
   if(btn){btn.disabled=true;btn.textContent="Enviando...";}
-  const r=await crearSolicitudRetiro(usuario,monto,destino,titular);
+  const r=await crearSolicitudRetiro(usuario,monto,destino,titular,false,dni,edad);
+  if(r.motivo==="edad_requerida"){
+    _restaurarBoton("btnEnviarRetiro","Enviar retiro a revisión");
+    _mostrarEdadRetiro("retiroDatosPrevios");
+    return toast("Ingresá tu edad para seguir.");
+  }
   if(r.motivo==="no_habilitado"){
     _restaurarBoton("btnEnviarRetiro","Enviar retiro a revisión");
     toast("⚠️ Tu usuario no está habilitado para operar. Validá tus datos o escribinos por soporte."); goChat(); return;
   }
-  if(!r.ok){_restaurarBoton("btnEnviarRetiro","Enviar retiro a revisión");toast("No pudimos enviar el retiro. Probá por el chat.");goChat();return;}
+  if(!r.ok){
+    _restaurarBoton("btnEnviarRetiro","Enviar retiro a revisión");
+    if(r.mensaje){toast(r.mensaje);return;}
+    if(r.motivo==="protocolo_no_disponible"||r.motivo==="beta_error"||r.motivo==="beta_respuesta_invalida"){toast("No pudimos confirmar el retiro con el servidor. No se envió; probá de nuevo en unos minutos.");return;}
+    toast("No pudimos enviar el retiro. Probá por el chat.");goChat();return;
+  }
   if(r.porChat){
     toast("Lo tomamos por el chat · un operador lo confirma");
     haptic([20,30,20]);
@@ -3351,7 +3620,7 @@ async function enviarSolicitudRetiro(){
     setTimeout(()=>subscribePush(),1200);
     return;
   }
-  toast("Retiro enviado a revisión 🕓");haptic([20,30,20]);
+  toast(r.estadoValidacion==="PENDIENTE"?"Retiro recibido · verificamos esta cuenta por única vez y te avisamos por el chat.":"Retiro enviado a revisión 🕓");haptic([20,30,20]);
   renderHome();
   goEstado();
   startChatPoll();
@@ -3383,7 +3652,6 @@ async function crearSolicitudClave(claveRaw){
   if(!/^[a-zA-Z0-9]+$/.test(clave))return {revisar:"Solo letras y números, sin espacios ni símbolos"};
   const payload={usuario:state.usuario,telefono:state.telefono||"",pc_codigo:state.pcCodigo,public_code:state.publicCode,host:location.host,tipo:"CAMBIO_CLAVE",password_nuevo:clave};
   let res=await rpc("landing_portal_v16_crear_solicitud",{p_public_code:state.publicCode,p_usuario:state.usuario,p_tipo:"CAMBIO_CLAVE",p_monto:0,p_titular:"",p_destino:null,p_mensaje:"Solicitud de CAMBIO_CLAVE",p_metadata:payload});
-  if(res.error){console.warn("[V18] clave v16 falló",res.error);res=await rpc("landing_crear_chat_v2_blindado",{p_public_code:state.publicCode,p_usuario:state.usuario,p_mensaje:"Solicitud de CAMBIO DE CLAVE",p_tipo:"CAMBIO_CLAVE",p_extra:payload});}
   if(res.error)return {ok:false};
   const d=normalize(res.data)||res.data||{};
   if(d.chat_id){state.chatId=String(d.chat_id);localStorage.setItem("bet300_chat_id",state.chatId);}
@@ -3572,19 +3840,22 @@ function guiaTextoMonto(real,pedido,id){return "Corrección de monto: el pedido 
 // Se le prometía "completá esto 👇" y abajo le decía que no estaba validado (Juan, 2/11).
 function guiaSinValidar(){return !guiaFaltaIdentidad()&&state.nivelAcceso==="SOPORTE";}
 function guiaYaPasoDatos(){return !!state._altaSoporteEnviado||guiaPersonaAvisada();}
-const GUIA_SIN_VALIDAR_HACE=["validarCuenta","registrarme","olvideUsuario","revalidar","persona","ingresar","validar","registro","ayuda","gracias"];
+// Ya mandó sus datos y espera que una persona lo valide. No hay nada que tocar: el Portal se fija
+// solo cada pocos segundos y, apenas lo habilitan, aparece el botón Ingresar. "Ya me activaron"
+// afirmaba algo que el sistema sabe que no pasó, y "Hablar con una persona" pedía lo que ya está
+// en marcha (Juan, 6/11: "el usuario debe esperar a que el operador responda con la validación").
+function guiaEsperandoValidacion(){return guiaSinValidar()&&guiaYaPasoDatos();}
+const GUIA_SIN_VALIDAR_HACE=["validarCuenta","registrarme","olvideUsuario","revalidar","persona","ingresar","validar","registro","gracias"];
 const GUIA_RAMAS={
   inicio:{dice:()=>!guiaSinValidar()?"¿Con qué te doy una mano?"
-      :guiaYaPasoDatos()?"Tu cuenta todavía no está validada. Ya tiene tus datos una persona: apenas te habilite, seguimos con lo que necesites."
+      :guiaYaPasoDatos()?"Tu cuenta está en revisión. Una persona ya tiene tus datos: apenas te habilite, te aparece acá el botón para entrar. No hace falta que hagas nada."
       :"Tu cuenta todavía no está validada. Validala y después te ayudo con cargas y retiros.",
     opciones:()=>!guiaSinValidar()?[
     {t:"💰 Una carga",va:"carga"},
     {t:"🏧 Un retiro",va:"retiro"},
     {t:"🔑 Entrar a mi cuenta",va:"cuenta"},
     {t:"✍️ Otra cosa",hace:"otraCosa"}
-  ]:guiaYaPasoDatos()?[
-    {t:"✅ Ya me activaron",hace:"revalidar"}
-  ]:[
+  ]:guiaYaPasoDatos()?[]:[
     {t:"✅ Validar mi cuenta",hace:"validarCuenta"},
     {t:"🆕 Soy nuevo",hace:"registrarme"},
     {t:"🔑 No me acuerdo el usuario",hace:"olvideUsuario"}
@@ -3615,7 +3886,6 @@ const GUIA_RAMAS={
 const GUIA_INGRESO={
   login:{titulo:"Tus datos",usuario:"Tu usuario de la plataforma",ejemplo:"Ej: usuario123",boton:"Entrar"},
   validar:{titulo:"Validá tu cuenta",usuario:"Tu usuario de la plataforma",ejemplo:"Ej: usuario123",boton:"Validar"},
-  olvido:{titulo:"Te ayuda una persona",boton:"Pedir ayuda"},
   registro:{titulo:"Te creamos el usuario",usuario:"Tu nombre o apodo",ejemplo:"Ej: Juan",boton:"Registrarme"}
 };
 
@@ -3699,8 +3969,12 @@ function guiaBotones(lista,op={}){
   if(!op.sinVolver)todas.push({t:"‹ Otra consulta",eco:"Otra consulta",va:"inicio",clase:"volver"});
   g.lista=todas;
   if(!todas.length)return "";
+  // Una opción con href sale de la página (WhatsApp): es un <a> de verdad y no un window.open después
+  // de la pausa, que el iPhone y los bloqueadores frenan porque ya no viene del toque.
   return '<div class="guia-opciones" role="group" aria-label="Opciones">'
-    +todas.map((o,i)=>'<button type="button"'+(o.clase?' class="'+o.clase+'"':'')+' onclick="guiaTocar('+i+')">'+esc(o.t)+'</button>').join("")+'</div>';
+    +todas.map((o,i)=>o.href
+      ?'<a'+(o.clase?' class="'+o.clase+'"':'')+' href="'+esc(o.href)+'" target="_blank" rel="noopener">'+esc(o.t)+'</a>'
+      :'<button type="button"'+(o.clase?' class="'+o.clase+'"':'')+' onclick="guiaTocar('+i+')">'+esc(o.t)+'</button>').join("")+'</div>';
 }
 function guiaOfrecer(lista,op){guiaPintarAccion(guiaBotones(lista,op));}
 function guiaFicha(html,lista=[],op={}){
@@ -3752,10 +4026,11 @@ function guiaIr(id){
   if(rama.identidad&&guiaFaltaIdentidad())return guiaPedirIdentidad(()=>guiaIr(id));
   g.nodo=id;g.tema=rama.tema?GUIA_TEMAS[rama.tema]:"";g.ingreso=null;g.esperaTexto=false;
   guiaDecir(typeof rama.dice==="function"?rama.dice():rama.dice);
-  guiaOfrecer(rama.opciones(),{sinVolver:id==="inicio"});
+  guiaOfrecer(rama.opciones(),{sinVolver:id==="inicio",sinPersona:id==="inicio"&&guiaEsperandoValidacion()});
 }
 function guiaReponerMenu(){
   const g=guiaCargar();
+  if(guiaEsperandoValidacion())return guiaOfrecer([],{sinPersona:true,sinVolver:true});
   if(g.humano)return guiaOfrecer([{t:"Ver opciones",va:"inicio"}],{sinPersona:true,sinVolver:true});
   const nodo=guiaSinValidar()?"inicio":g.nodo;
   guiaOfrecer(GUIA_RAMAS[nodo].opciones(),{sinVolver:nodo==="inicio"});
@@ -3872,7 +4147,14 @@ function guiaAbrirIngreso(modo){
 }
 function guiaModoIngreso(modo){
   const g=guiaCargar();
-  if(_enviando||!g.ingreso||!guiaTiene(GUIA_INGRESO,modo))return;
+  if(_enviando||!g.ingreso)return;
+  // No es otra ficha: sale de la ficha y sigue el mismo camino que la opción del menú.
+  if(modo==="olvido"){
+    if(guiaOcupada)return;
+    g.ingreso=null;guiaDijo("No me acuerdo el usuario");
+    return guiaCorrer(guiaOlvideUsuario);
+  }
+  if(!guiaTiene(GUIA_INGRESO,modo))return;
   g.ingreso.modo=modo;
   guiaFichaIngreso();
 }
@@ -3894,12 +4176,12 @@ async function guiaEnviarIngreso(){
   try{
     const usuario=$("guiaUsuario")?.value||"",telefono=$("guiaTelefono")?.value||"";
     const entra=modo==="login"||modo==="validar";
-    const r=entra?await ingresarJugador(usuario,telefono):modo==="registro"?pedirRegistroCon(usuario,telefono):pedirAyudaCon("",telefono);
+    const r=entra?await ingresarJugador(usuario,telefono):pedirRegistroCon(usuario,telefono);
     if(r.error)return guiaErrorFicha(r.error);
     if(entra&&r.acceso){
       guiaQuitarAccion();
       guiaDecir("Listo, <b>"+esc(state.usuario)+"</b>, ya te reconocí.");
-    }else aviso=entra?"validar":modo==="registro"?"registro":"ayuda";
+    }else aviso=entra?"validar":"registro";
     g.ingreso=null;guiaGuardar();
     startChatPoll();
   }catch(e){
@@ -3920,7 +4202,6 @@ async function guiaAvisarPersona(tipo){
   if(!r?.ok)return guiaFalloEnvio(tipo);
   g.personaAt=Date.now();g.fallos=0;guiaGuardar();
   guiaDecir({registro:"Listo. Un operador te crea el usuario y te avisa por acá.",
-    ayuda:"Listo, ya le pasé tus datos a una persona. Te contesta por acá.",
     validar:"No te pude validar solo, así que ya le pasé tus datos a una persona. Apenas te habilite, te aparece el botón <b>Ingresar</b> acá mismo"+(despuesPendiente()?" y te paso para "+GUIA_DESPUES_TXT[despuesPendiente()]:"")+"."}[tipo]);
   guiaOfrecer([],{sinPersona:true});
 }
@@ -3950,8 +4231,8 @@ function guiaFaltaValidar(que){
   const para=GUIA_DESPUES_TXT[que]||"operar";
   // Ya se los pasó a una persona: no se le vuelven a pedir.
   if(state._altaSoporteEnviado||guiaPersonaAvisada()){
-    guiaDecir("Tu cuenta todavía no está validada. Ya tiene tus datos una persona: apenas te habilite, te paso para "+para+".");
-    return guiaOfrecer([{t:"Ya me activaron",hace:"revalidar"}]);
+    guiaDecir("Tu cuenta está en revisión. Una persona ya tiene tus datos: apenas te habilite, te aparece acá el botón para entrar y te paso para "+para+".");
+    return guiaOfrecer([],{sinPersona:true,sinVolver:true});
   }
   const g=guiaCargar();
   g.ingreso={modo:"validar",siguiente:GUIA_DESPUES[que]};
@@ -3970,8 +4251,12 @@ async function guiaRevalidar(){
 }
 // El usuario guardado es lo que el jugador escribió al entrar. Se lo repetía tal cual, y si lo había
 // escrito mal le confirmaba el error (Carlitos, 2/11). Sólo se le dice si el servidor confirma que
-// esa cuenta está vinculada a su teléfono; si no, una persona se lo busca con el teléfono.
-async function guiaMiUsuario(){
+// esa cuenta está vinculada a su teléfono.
+// Si no, por acá no se dice nunca, ni lo dice una persona por este chat: cualquiera puede escribir un
+// teléfono ajeno. Lo pide por WhatsApp desde su número y la oficina le contesta con el usuario y el
+// enlace de ingreso a ese mismo WhatsApp, que sólo lee el dueño del teléfono (Juan, 2/11).
+const GUIA_WHATSAPP_USUARIO="Hola, ¿me pasás mi usuario y el enlace para poder cargar, por favor?";
+async function guiaOlvideUsuario(){
   if(state.usuario&&state.telefono&&!/^(ayuda|nuevo)-/.test(state.usuario)){
     const v=await vinculoPuedeOperar();
     if(v.verdict==="ACCESO"&&v.estado==="VINCULADO"){
@@ -3979,12 +4264,13 @@ async function guiaMiUsuario(){
       return guiaOfrecer([]);
     }
   }
-  if(state._altaSoporteEnviado||guiaPersonaAvisada()){
-    guiaDecir("Tu cuenta todavía no está validada. Ya tiene tus datos una persona: te confirma el usuario por acá.");
-    return guiaOfrecer([],{sinPersona:true});
+  const numero=await whatsappOficina();
+  if(!numero){
+    guiaDecir("Por seguridad, tu usuario no se dice por acá. Pedíselo a tu oficina por WhatsApp, <b>desde tu número</b>.");
+    return guiaOfrecer([]);
   }
-  guiaDecir("Todavía no te lo puedo confirmar: primero hay que validar tu cuenta. Dejame tu teléfono y una persona te lo busca 👇");
-  guiaAbrirIngreso("olvido");
+  guiaDecir("Por seguridad, tu usuario no se dice por acá. Escribile a tu oficina por WhatsApp <b>desde tu número</b> y te pasan el usuario y el enlace para entrar 👇");
+  guiaOfrecer([{t:"📲 Pedir mi usuario por WhatsApp",href:"https://wa.me/"+numero+"?text="+encodeURIComponent(GUIA_WHATSAPP_USUARIO),clase:"whatsapp"}]);
 }
 
 // ── Una persona ──────────────────────────────────────────────────────────────
@@ -4073,6 +4359,29 @@ function guiaContarRetiro(r){
   return base+" está en revisión. Apenas lo paguen te aviso por acá.";
 }
 async function guiaRetiroEstado(){
+  const protocolo=await _consultarRetiroProtocolo(false);
+  if(protocolo&&protocolo.mode==="beta"&&protocolo.ultima_solicitud){
+    const u=protocolo.ultima_solicitud,estado=String(u.estado||"").toUpperCase(),validacion=String(u.estado_validacion||"").toUpperCase();
+    const reciente=Date.now()-new Date(u.actualizada_at||u.creada_at||0).getTime()<7*24*60*60*1000;
+    if(reciente&&(String(u.codigo||"").toUpperCase()==="DNI_MISMATCH"||validacion==="RECHAZADO")){
+      state._retiroDniRechazado=String(u.codigo||"").toUpperCase()==="DNI_MISMATCH";
+      guiaDecir("Tu retiro de <b>"+guiaPlata(u.monto)+"</b> no se pudo pagar porque no se confirmó la titularidad de la cuenta. No se descontaron fichas. Corregí el DNI o los datos de cobro; el DNI rechazado no se puede volver a enviar.");
+      guiaOfrecer([{t:"Corregir DNI o cuenta",hace:"corregirRetiro"},{t:"Hablar con una persona",hace:"persona",tema:"retiroSinPago",sinEco:true}]);
+      return;
+    }
+    if(reciente&&validacion==="PENDIENTE"){
+      guiaDecir("Tu retiro de <b>"+guiaPlata(u.monto)+"</b> está en verificación de titularidad con el banco. Es por única vez para esta cuenta y puede demorar unos minutos. No hace falta que envíes otro retiro; te avisamos por acá cuando termine.");
+      guiaOfrecer([{t:"Hablar con una persona",hace:"persona",tema:"retiroSinPago",sinEco:true}]);
+      return;
+    }
+    if(protocolo.mode==="beta"&&estado==="PAGADA"&&u.id){
+      guiaDecir("Tu último retiro ya figura como pagado. Si todavía no ves la transferencia, te paso con una persona para que lo revisen.");
+      return guiaOfrecer([{t:"Hablar con una persona",hace:"persona",tema:"retiroSinPago",sinEco:true}]);
+    }
+  }else if(protocolo&&protocolo.mode==="error"){
+    guiaDecir("No pude consultar la verificación de tu retiro ahora. Probá de nuevo en unos minutos o escribinos para que una persona lo revise.");
+    return guiaOfrecer([{t:"Probar de nuevo",hace:"retiroEstado",sinEco:true},{t:"Hablar con una persona",hace:"persona",tema:"retiroSinPago",sinEco:true}]);
+  }
   const rows=await guiaHistorial("retiroEstado");if(!rows)return;
   const r=guiaUltima(rows,"RETIRO");
   if(!r){
@@ -4081,6 +4390,21 @@ async function guiaRetiroEstado(){
   }
   guiaDecir(guiaContarRetiro(r));
   guiaOfrecer([]);
+}
+async function guiaCorregirRetiro(){
+  const protocolo=await _consultarRetiroProtocolo(true);
+  if(protocolo&&protocolo.mode==="error"){
+    guiaDecir("No pude abrir la corrección ahora. Probá de nuevo en unos minutos o escribinos para que una persona te ayude.");
+    return guiaOfrecer([{t:"Probar de nuevo",hace:"corregirRetiro",sinEco:true},{t:"Hablar con una persona",hace:"persona",tema:"retiroSinPago",sinEco:true}]);
+  }
+  if(protocolo&&protocolo.mode==="beta"){
+    protocolo.cambiarCuenta=true;protocolo.correccion=true;
+    try{localStorage.removeItem(_retiroKey());}catch(_e){}
+    try{olvidarSolicitud(false);}catch(_e){}
+    return guiaFichaRetiro(true);
+  }
+  guiaDecir("Abrí Retirar desde el menú para corregir los datos de cobro o escribinos por chat.");
+  guiaOfrecer([{t:"Hablar con una persona",hace:"persona",tema:"retiroSinPago",sinEco:true}]);
 }
 async function guiaUltimoRetiro(){
   const rows=await guiaHistorial("ultimoRetiro");if(!rows)return;
@@ -4117,6 +4441,19 @@ async function guiaEnviarComprobante(){
   try{
     const url=await subirImagen(file);
     if(!url)return guiaErrorFicha("No pude subir la imagen. Tu archivo sigue acá: probá de nuevo.");
+    // El mensaje queda en el chat, pero la tarjeta de la carga necesita también
+    // la URL en la solicitud para que el operador la vea como comprobante adjunto.
+    if(g.pedidoComprobante){
+      const asociado=await rpc("landing_portal_adjuntar_comprobante_v1",{
+        p_public_code:state.publicCode,
+        p_usuario:state.usuario,
+        p_solicitud_id:Number(g.pedidoComprobante),
+        p_comprobante_url:url
+      });
+      if(asociado?.error && !/42883|PGRST202|function .* does not exist/i.test(String(asociado.error.message||""))){
+        return guiaErrorFicha("No pude asociar el comprobante a tu pedido. La imagen sigue acá: probá de nuevo.");
+      }
+    }
     const texto=guiaTextoComprobante(g.pedidoComprobante);
     const r=await enviarMensajeSoporte(texto,url,g.pedidoComprobante||null);
     if(!r?.ok)return guiaErrorFicha("No pude mandarlo. Tu archivo sigue acá: probá de nuevo.");
@@ -4226,6 +4563,10 @@ async function guiaFichaCarga(sinAviso){
   if(!await guiaPuedeOperar("carga"))return;
   if(await guiaHaySolicitudEnCurso())return guiaSolicitudEnCurso();
   const b=await obtenerBilletera();
+  if(!b&&state.billeteraFallo){
+    guiaDecir("Se cortó la conexión mientras buscaba la cuenta. Escribime de nuevo en un momento y te la paso.");
+    return guiaOfrecer([]);
+  }
   if(!b){
     guiaDecir("Ahora no tengo una cuenta para pasarte. Tocá Hablar con una persona y te la dan.");
     return guiaOfrecer([]);
@@ -4243,6 +4584,7 @@ async function guiaFichaCarga(sinAviso){
     +'<div class="guia-aviso">Tiene que ser <b>la cuenta desde la que sale la plata</b>. Si transferís desde la cuenta de otra persona, poné ese nombre.</div>'
     +'<div id="guiaError" class="guia-error" role="alert"></div>'
     +'<button type="submit" id="guiaEnviar" class="action-btn">Ya transferí · Pedir la carga</button></form>'));
+  if(typeof _titularPrevioRevisar==="function")_titularPrevioRevisar($("guiaTitular"));
 }
 async function guiaEnviarCarga(){
   if(!_tomarEnvio("guiaEnviar","Enviando..."))return;
@@ -4265,32 +4607,52 @@ async function guiaEnviarCarga(){
 async function guiaFichaRetiro(){
   if(!await guiaPuedeOperar("retiro"))return;
   if(await guiaHaySolicitudEnCurso())return guiaSolicitudEnCurso();
+  const correccion=!!(state._retiroProtocolo&&state._retiroProtocolo.correccion);
   const resto=retiroCooldownRestanteMs();
-  if(resto>0){
+  if(resto>0&&!correccion){
     guiaDecir("Ya pediste un retiro hoy. Podés pedir otro en <b>"+esc(_fmtRestante(resto))+"</b>.");
     return guiaOfrecer([]);
   }
   const previos=await leerDatosRetiro();
+  if(previos&&previos.error){
+    guiaDecir("No pudimos comprobar si esta cuenta está habilitada. Probá de nuevo en unos minutos.");
+    return guiaOfrecer([{t:"Probar de nuevo",hace:"fichaRetiro",sinEco:true},{t:"Hablar con una persona",hace:"persona",tema:"retiro",sinEco:true}]);
+  }
+  const beta=!!(previos&&previos.beta),bloqueada=beta&&previos.validado&&!correccion&&!state._retiroProtocolo.cambiarCuenta;
   guiaDecir("Dale, completá esto 👇");
   guiaFicha(guiaEnCara('<form class="guia-ficha" novalidate onsubmit="event.preventDefault();guiaEnviarRetiro()"><h4>¿Cuánto querés retirar?</h4>'
     +'<label for="guiaMonto">Monto (mínimo '+esc(_money(_minRetiro()))+')</label>'
     +'<input id="guiaMonto" type="text" inputmode="numeric" autocomplete="off" placeholder="Ej: 10000" oninput="_soloNumero(this)">'
+    +'<div id="guiaCuentaVerificada" style="display:'+(bloqueada?'block':'none')+';margin:10px 0;padding:11px;border:1px solid #31506a;border-radius:10px">'
+      +'<b>Cuenta de cobro verificada</b><br>'+esc(previos&&previos.destino||'')+' · '+esc(previos&&previos.titular||'')
+      +'<br><span>La titularidad ya fue confirmada para esta cuenta.</span><br><button type="button" class="link-btn" onclick="guiaCambiarCuentaRetiro()">Cambiar cuenta de cobro</button></div>'
+    +'<div id="guiaCuentaCampos" style="display:'+(bloqueada?'none':'block')+'">'
     +'<label for="guiaDestino">¿A qué CBU o alias te lo mandamos?</label>'
     +'<input id="guiaDestino" placeholder="Alias o CBU/CVU donde cobrás" value="'+esc(previos?.destino||"")+'">'
     +'<label for="guiaTitular">¿A nombre de quién está esa cuenta?</label>'
     +'<input id="guiaTitular" placeholder="Nombre y apellido" autocomplete="name" value="'+esc(_soloLetras(previos?.titular||""))+'" oninput="onTitularInput(this)">'
     +'<div id="guiaAvisoTitular" class="titular-aviso" style="display:none"></div>'
-    +(previos?'<div class="guia-nota">Pusimos los datos de tu último retiro. Si cobrás en otra cuenta, cambialos.</div>':'')
-    +'<div class="guia-aviso">Tiene que ser <b>una cuenta tuya</b>. Si está a nombre de otra persona, lo vamos a revisar antes de pagar.</div>'
+    +(previos&&!beta?'<div class="guia-nota">Pusimos los datos de tu último retiro. Si cobrás en otra cuenta, cambialos.</div>':'')
+    +'</div><div id="guiaDniWrap" style="display:'+(beta&&!bloqueada?'block':'none')+'"></div>'
+    +'<div class="guia-aviso">Tiene que ser <b>una cuenta tuya</b>. Si es una cuenta nueva, confirmamos la titularidad una sola vez antes del primer pago.</div>'
     +'<div id="guiaError" class="guia-error" role="alert"></div>'
     +'<button type="submit" id="guiaEnviar" class="action-btn">Pedir el retiro</button></form>'));
+  if(beta&&!bloqueada)_mostrarDniRetiro("guiaDniWrap");
+}
+function guiaCambiarCuentaRetiro(){
+  if(state._retiroProtocolo){state._retiroProtocolo.cambiarCuenta=true;state._retiroProtocolo.correccion=true;}
+  const card=$("guiaCuentaVerificada"),fields=$("guiaCuentaCampos"),dni=$("guiaDniWrap");
+  if(card)card.style.display="none";
+  if(fields)fields.style.display="block";
+  if(dni){dni.style.display="block";_mostrarDniRetiro("guiaDniWrap");}
+  try{$("guiaDestino")?.focus();}catch(_e){}
 }
 async function guiaEnviarRetiro(){
   if(!_tomarEnvio("guiaEnviar","Enviando..."))return;
   try{
     _marcarToque();
     const monto=Math.abs(Number(String($("guiaMonto")?.value||"").trim()));
-    const destino=String($("guiaDestino")?.value||"").trim(),titular=String($("guiaTitular")?.value||"").trim();
+    const destino=String($("guiaDestino")?.value||"").trim(),titular=String($("guiaTitular")?.value||"").trim(),dni=String($("guiaDni")?.value||"").replace(/\D/g,"");
     if(!monto)return guiaErrorFicha("Escribí cuánto querés retirar.","guiaMonto");
     if(monto<_minRetiro())return guiaErrorFicha("El retiro mínimo es "+_money(_minRetiro())+".","guiaMonto");
     if(destino.length<6)return guiaErrorFicha("Escribí el alias o CBU completo.","guiaDestino");
@@ -4298,10 +4660,28 @@ async function guiaEnviarRetiro(){
     if(mal)return guiaErrorFicha(mal,"guiaTitular");
     if(await guiaHaySolicitudEnCurso())return guiaSolicitudEnCurso();
     const resto=retiroCooldownRestanteMs();
-    if(resto>0)return guiaErrorFicha("Ya pediste un retiro hoy. Podés pedir otro en "+_fmtRestante(resto)+".");
-    const r=await crearSolicitudRetiro(state.usuario,monto,destino,titular,true);
+    const correccion=!!(state._retiroProtocolo&&state._retiroProtocolo.correccion);
+    if(resto>0&&!correccion)return guiaErrorFicha("Ya pediste un retiro hoy. Podés pedir otro en "+_fmtRestante(resto)+".");
+    const protocolo=await _consultarRetiroProtocolo(false),instrumento=protocolo.instrumento||null;
+    const requiereDni=protocolo.mode==="beta"&&(!(instrumento
+      &&String(instrumento.destino||"").trim().toUpperCase()===String(destino||"").trim().replace(/\s+/g,"").toUpperCase()
+      &&String(instrumento.titular||"").trim().toUpperCase()===String(titular||"").trim().replace(/\s+/g," ").toUpperCase())
+      ||!!protocolo.cambiarCuenta||correccion);
+    if(protocolo.mode==="error")return guiaErrorFicha("No pudimos comprobar la verificación de retiro. Probá de nuevo en unos minutos.");
+    if(requiereDni&&!/^\d{7,8}$/.test(dni))return guiaErrorFicha("Ingresá tu DNI, sin puntos.","guiaDni");
+    const edadEl=$("guiaEdad"),edad=edadEl?String(edadEl.value||"").replace(/\D/g,""):"";
+    if(edadEl&&!edad)return guiaErrorFicha("Ingresá tu edad para seguir.","guiaEdad");
+    const r=await crearSolicitudRetiro(state.usuario,monto,destino,titular,true,dni,edad);
+    if(!r.ok&&r.motivo==="edad_requerida"){
+      _mostrarEdadRetiro("guiaDniWrap");
+      return guiaErrorFicha("Ingresá tu edad para seguir.","guiaEdad");
+    }
+    if(!r.ok&&r.mensaje)return guiaErrorFicha(r.mensaje);
+    if(!r.ok&&(r.motivo==="protocolo_no_disponible"||r.motivo==="beta_error"||r.motivo==="beta_respuesta_invalida"))
+      return guiaErrorFicha("No se envió el retiro porque no pudimos confirmar el servidor. Probá de nuevo en unos minutos.");
     if(!guiaTrasCrear(r,"retiro"))return;
-    guiaDarVuelta(guiaTicket({sub:"Lo revisan y te lo transferimos.",estado:"Esperando que lo aprueben",filas:[
+    const enValidacion=r.estadoValidacion==="PENDIENTE";
+    guiaDarVuelta(guiaTicket({sub:enValidacion?"Verificamos esta cuenta por única vez y te avisamos por el chat.":"Lo revisan y te lo transferimos.",estado:enValidacion?"Verificando titularidad":"Esperando que lo aprueben",filas:[
       ["Vas a retirar",_money(monto)],["Te lo mandamos a",destino],["A nombre de",titular],["N° de pedido","#"+r.solicitudId]]}));
     guiaOfrecer([]);
   }finally{_soltarEnvio("guiaEnviar","Pedir el retiro",true);}
@@ -4329,9 +4709,9 @@ async function guiaEnviarClave(){
 
 const GUIA_HACE={persona:guiaPedirPersona,otraCosa:guiaOtraCosa,noAparecio:guiaNoAparecio,fichaCarga:()=>guiaFichaCarga(),rechazo:guiaRechazo,
   montoMal:guiaMontoMal,otraCuenta:guiaOtraCuenta,comprobante:()=>guiaFichaComprobante(solicitudIdValido()),fichaRetiro:guiaFichaRetiro,
-  retiroEstado:guiaRetiroEstado,ultimoRetiro:guiaUltimoRetiro,fichaClave:guiaFichaClave,miUsuario:guiaMiUsuario,gracias:guiaGracias,revalidar:guiaRevalidar,
-  ingresar:()=>guiaAbrirIngreso("login"),validarCuenta:guiaValidarCuenta,registrarme:()=>guiaAbrirIngreso("registro"),olvideUsuario:()=>guiaAbrirIngreso("olvido"),
-  validar:()=>guiaAvisarPersona("validar"),registro:()=>guiaAvisarPersona("registro"),ayuda:()=>guiaAvisarPersona("ayuda")};
+  retiroEstado:guiaRetiroEstado,corregirRetiro:guiaCorregirRetiro,ultimoRetiro:guiaUltimoRetiro,fichaClave:guiaFichaClave,miUsuario:guiaOlvideUsuario,gracias:guiaGracias,revalidar:guiaRevalidar,
+  ingresar:()=>guiaAbrirIngreso("login"),validarCuenta:guiaValidarCuenta,registrarme:()=>guiaAbrirIngreso("registro"),olvideUsuario:guiaOlvideUsuario,
+  validar:()=>guiaAvisarPersona("validar"),registro:()=>guiaAvisarPersona("registro")};
 
 // ── Push PWA ──────────────────────────────────────────────────────────────
 const VAPID_PUB_KEY="BAH2MtolgsjjO31mPNwMi0WIl-T4LEDocaGSc1F3RUE0F7ZOF-1eJ1gXSuisalnR6tu0ZYcISWtnRdH-S5MFYBw";
