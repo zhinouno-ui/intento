@@ -522,7 +522,7 @@ const PLATFORM_URL = "https://bet-300.pw";
 // Sello de versión a la vista. Sin esto no hay forma de saber si lo que se abrió es el portal
 // nuevo o la copia vieja que guardó el service worker en el teléfono. Se cambia a mano en cada
 // publicación, junto con la versión del sw.js.
-const PORTAL_VER="v2.1.19 · 12/11";
+const PORTAL_VER="v2.1.20 · 13/11";
 let sb=null;try{if(SUPABASE_ANON_KEY&&!SUPABASE_ANON_KEY.includes("PEGAR_"))sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY)}catch(e){console.warn(e)}
 
 const state={
@@ -3833,6 +3833,35 @@ const GUIA_TEMAS={
   noEntra:"no consigo entrar a mi cuenta"
 };
 function guiaTextoPersona(tema){return "Pido hablar con una persona.\nTema: "+(tema||GUIA_TEMAS.consulta)+".";}
+// 13/11: al pasar con una persona se le decía al jugador "ya le mandé lo que hablamos" y al operador le
+// llegaba sólo el tema. Ahora viaja, en el mismo mensaje, lo que eligió y lo que el asistente encontró
+// en su cuenta. Las palabras están elegidas igual que GUIA_TEMAS: "no aprobada" y no la otra, porque el
+// bot del servidor contesta solo si la lee, y aparecería encima del pedido. La prueba las corre contra sus reglas.
+function guiaEstadoTxt(r){
+  const e=guiaEstado(r);
+  if(e==="hecha")return estadoNormalizado(r.tipo)==="RETIRO"?"pagado":"acreditada";
+  return e==="rechazada"?"no aprobada":e==="cancelada"?"cancelada":"en la fila";
+}
+const GUIA_TEMAS_DE_CARGA=["carga","noAparece","cargaCaida","monto","otraCuenta","sinComprobante"],GUIA_TEMAS_DE_RETIRO=["retiro","retiroSinPago","retiroAjeno"];
+function guiaCamino(g,etiqueta){
+  if(!etiqueta)return;
+  g.camino=(g.camino||[]).filter(x=>x!==etiqueta).concat(etiqueta).slice(-4);
+}
+function guiaLineaOperacion(nombre,r){
+  return "· "+nombre+": "+_money(Number(r.monto)||0)+" · "+_fechaCorta(r.fecha)+" · "+guiaEstadoTxt(r)+(r.solicitud_id?" · pedido "+r.solicitud_id:"");
+}
+function guiaResumenPersona(tema,camino,rows,enCurso){
+  const lineas=[],clave=Object.keys(GUIA_TEMAS).find(k=>GUIA_TEMAS[k]===tema)||"";
+  const pasos=(camino||[]).filter(Boolean);
+  if(pasos.length>1)lineas.push("· Eligió: "+pasos.join(" › "));
+  if(rows){
+    const carga=guiaUltima(rows,"CARGA"),retiro=guiaUltima(rows,"RETIRO");
+    if(carga&&!GUIA_TEMAS_DE_RETIRO.includes(clave))lineas.push(guiaLineaOperacion("Última carga",carga));
+    if(retiro&&!GUIA_TEMAS_DE_CARGA.includes(clave))lineas.push(guiaLineaOperacion("Último retiro",retiro));
+  }
+  if(enCurso)lineas.push("· En curso: "+enCurso);
+  return lineas.length?"\nResumen del asistente:\n"+lineas.join("\n"):"";
+}
 function guiaTextoComprobante(pedido){return "Comprobante de mi transferencia"+(pedido?" · pedido "+pedido:"")+".";}
 function guiaTextoMonto(real,pedido,id){return "Corrección de monto: el pedido decía "+_money(pedido)+" y transferí "+_money(real)+"."+(id?" Pedido "+id+".":"");}
 
@@ -3898,7 +3927,7 @@ function guiaIdentidadActual(){return {ruta:state.publicCode||"",usuario:String(
 function guiaGuardar(){
   const g=guiaActual;if(!g)return;
   g.usuario=guiaIdentidadActual().usuario;g.updatedAt=Date.now();
-  try{sessionStorage.setItem(GUIA_CLAVE,JSON.stringify({version:GUIA_VERSION,ruta:g.ruta,usuario:g.usuario,nodo:g.nodo,tema:g.tema,burbujas:g.burbujas,personaAt:g.personaAt,pedido:g.pedido,humano:g.humano,fragmentos:g.fragmentos,updatedAt:g.updatedAt}));}catch(_e){}
+  try{sessionStorage.setItem(GUIA_CLAVE,JSON.stringify({version:GUIA_VERSION,ruta:g.ruta,usuario:g.usuario,nodo:g.nodo,tema:g.tema,camino:g.camino,burbujas:g.burbujas,personaAt:g.personaAt,pedido:g.pedido,humano:g.humano,fragmentos:g.fragmentos,updatedAt:g.updatedAt}));}catch(_e){}
 }
 function guiaGuardada(ruta,usuario){
   let s=null;
@@ -3906,7 +3935,7 @@ function guiaGuardada(ruta,usuario){
   const vale=s&&s.version===GUIA_VERSION&&Number.isFinite(s.updatedAt)&&Date.now()-s.updatedAt<GUIA_VIGENCIA_MS
     &&s.ruta===ruta&&s.usuario===usuario&&guiaTiene(GUIA_RAMAS,s.nodo)&&Array.isArray(s.burbujas);
   if(!vale)return null;
-  return {nodo:s.nodo,tema:String(s.tema||""),personaAt:Number(s.personaAt)||0,pedido:s.pedido&&typeof s.pedido==="object"?s.pedido:null,humano:!!s.humano,fragmentos:Number(s.fragmentos)||0,
+  return {nodo:s.nodo,tema:String(s.tema||""),camino:Array.isArray(s.camino)?s.camino.filter(x=>typeof x==="string"&&x.length<=80).slice(-4):[],personaAt:Number(s.personaAt)||0,pedido:s.pedido&&typeof s.pedido==="object"?s.pedido:null,humano:!!s.humano,fragmentos:Number(s.fragmentos)||0,
     burbujas:s.burbujas.filter(b=>b&&["guide","user"].includes(b.q)&&typeof b.h==="string"&&b.h.length<=1200&&typeof b.at==="string").slice(-40)};
 }
 function guiaCargar(){
@@ -3916,7 +3945,7 @@ function guiaCargar(){
     if(guiaActual.ruta===ruta&&(guiaActual.usuario===usuario||!guiaActual.usuario))return guiaActual;
     guiaOlvidar();
   }
-  guiaActual={ruta,usuario,nodo:"inicio",tema:"",burbujas:[],personaAt:0,pedido:null,humano:false,fragmentos:0,lista:[],fallos:0,ingreso:null,esperaTexto:false,updatedAt:Date.now(),...(guiaGuardada(ruta,usuario)||{})};
+  guiaActual={ruta,usuario,nodo:"inicio",tema:"",camino:[],burbujas:[],personaAt:0,pedido:null,humano:false,fragmentos:0,lista:[],fallos:0,ingreso:null,esperaTexto:false,updatedAt:Date.now(),...(guiaGuardada(ruta,usuario)||{})};
   return guiaActual;
 }
 function guiaOlvidar(){
@@ -4012,7 +4041,7 @@ function guiaTocar(i){
   haptic(6);
   // El teclado del iPhone sólo se abre adentro del toque, no después de la pausa.
   if(o.hace==="otraCosa"){try{$("freeInput")?.focus();}catch(_e){}}
-  if(o.tema)g.tema=GUIA_TEMAS[o.tema];
+  if(o.tema){g.tema=GUIA_TEMAS[o.tema];guiaCamino(g,g.tema);}
   if(!o.sinEco)guiaDijo(o.eco||o.t);
   return guiaCorrer(async()=>{
     if(guiaChequeo)await guiaChequeo;
@@ -4025,6 +4054,7 @@ function guiaIr(id){
   const g=guiaCargar(),rama=GUIA_RAMAS[id];
   if(rama.identidad&&guiaFaltaIdentidad())return guiaPedirIdentidad(()=>guiaIr(id));
   g.nodo=id;g.tema=rama.tema?GUIA_TEMAS[rama.tema]:"";g.ingreso=null;g.esperaTexto=false;
+  if(id==="inicio")g.camino=[];else guiaCamino(g,g.tema);
   guiaDecir(typeof rama.dice==="function"?rama.dice():rama.dice);
   guiaOfrecer(rama.opciones(),{sinVolver:id==="inicio",sinPersona:id==="inicio"&&guiaEsperandoValidacion()});
 }
@@ -4277,7 +4307,12 @@ async function guiaOlvideUsuario(){
 async function guiaPedirPersona(opcion){
   const g=guiaCargar();
   if(guiaFaltaIdentidad())return guiaPedirIdentidad(guiaPedirPersona,"Para pasarte con una persona necesito tus datos 👇");
-  const texto=guiaTextoPersona(g.tema);
+  // Lo que el sistema sabe de su cuenta. Si no se puede leer, el pedido sale igual, sin esa parte.
+  let rows=null;
+  try{const h=await cargarResumenHistorial();if(h&&h.ok)rows=h.rows||[];}catch(_e){}
+  const pendiente=typeof tieneSolicitudPendiente==="function"&&tieneSolicitudPendiente()&&solicitudIdValido();
+  const resumen=guiaResumenPersona(g.tema,g.camino,rows,pendiente?String(state.pendingTipo||"pedido").toLowerCase()+" nº "+pendiente:"");
+  const texto=guiaTextoPersona(g.tema)+resumen;
   if(guiaPedidoRepetido(texto)){
     if(opcion?.t)guiaDijo(opcion.t);
     guiaDecir("Ese pedido ya lo tiene una persona. Si querés sumar algo, escribilo acá abajo.");
@@ -4287,7 +4322,9 @@ async function guiaPedirPersona(opcion){
   if(!r?.ok)return guiaFalloEnvio("persona");
   mostrarMensajePropio(texto,null,r);
   g.personaAt=Date.now();g.fallos=0;g.pedido={texto,chat:String(state.chatId||""),at:Date.now()};guiaGuardar();
-  guiaDecir("Te paso con un operador. <b>Ya le mandé lo que hablamos</b>, no tenés que explicar de nuevo. Te contesta por acá mismo.");
+  // Sólo se le dice que el operador ya lo sabe si de verdad viajó algo más que el tema.
+  guiaDecir(resumen?"Te paso con un operador. <b>Ya le mandé lo que hablamos</b>, no tenés que explicar de nuevo. Te contesta por acá mismo."
+    :"Te paso con un operador. Te contesta por acá mismo.");
   guiaOfrecer([],{sinPersona:true});
 }
 
